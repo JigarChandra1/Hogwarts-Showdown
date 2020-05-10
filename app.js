@@ -929,7 +929,7 @@ function shouldTrade() {
   return Math.floor(Math.random() * 100) < 40;
 }
 
-function getActivePlayersWithinReach(player, gameInfo) {
+function getPlayersWithinReach(player, gameInfo, active) {
   const cb = player.FaceUpCards.find(c => c.type === CardTypes.CB), 
   playerReachLevel = cb ? cb.number : 1,
   selfIdx = gameInfo.Players.findIndex(p => p.ID === player.ID);
@@ -951,8 +951,10 @@ function getActivePlayersWithinReach(player, gameInfo) {
     playersWithinReachIdx.push(((selfIdx + 3) % REQUIRED_PLAYERS));
   }
   return gameInfo.Players.reduce((acc, p, idx) => {
-    if (p.HorcruxCount && playersWithinReachIdx.includes(idx)) {
-      acc.push(p);
+    if (playersWithinReachIdx.includes(idx)) {
+      if (active && p.HorcruxCount || (!active && p.HorcruxCount === 0)) {
+        acc.push(p);
+      }
     }
     return acc;
   }, []);
@@ -1004,13 +1006,14 @@ function updateBotDeductionsOnAttack(attackerPlayerId, targetedPlayerId, gameInf
   });
 }
 
-function playAttackingCard(card, player, targetedPlayerId, gameInfo, botState) {
-  if (card.type === CardTypes.AVADAKEDAVRA) {
-    const cardIdx = player.Hand.findIndex(c => c.type === CardTypes.AVADAKEDAVRA);
+function playAttackingCard(card, playAsAK, player, targetedPlayerId, gameInfo, botState) {
+  if (card.type === CardTypes.AVADAKEDAVRA || playAsAK) {
+    const cardIdx = player.Hand.findIndex(c => c.type === card.type && c.suite === card.suite && c.number === card.number);
     gameInfo.DiscardPile.push(player.Hand.splice(cardIdx, 1)[0]);
     const targetedPlayer = gameInfo.Players.find(p => p.ID === targetedPlayerId);
     targetedPlayer.HorcruxCount -= 1;
-    const akEvent = `${player.Character.name} casted Avada Kedavra on ${targetedPlayer.Character.name}`;
+    const akEvent = playAsAK ? `${player.Character.name} casted ${getCardShortHand(card)} as Avada Kedavra on ${targetedPlayer.Character.name}` 
+    :  `${player.Character.name} casted Avada Kedavra on ${targetedPlayer.Character.name}`;
     //const akEvent = `Player ${player.ID} (${player.name}) casted Avada Kedavra on Player ${targetedPlayerId} (${targetedPlayer.name})`;
     console.log(akEvent);
     if (!targetedPlayer.HorcruxCount) {
@@ -1062,7 +1065,7 @@ function guessAndUpdateBotDeductions(gameInfo, botState) {
       const allAlliesFound = state.playerDeductions.filter(d => d.verdict === VERDICTS.ALLY).length;
       unknowns.forEach(u => {
         const uPlayer = gameInfo.Players.find(p => p.ID === u.playerID);
-        const playersWithinReach = getActivePlayersWithinReach(uPlayer, gameInfo);
+        const playersWithinReach = getPlayersWithinReach(uPlayer, gameInfo, true);
         const isVoldemortWithinReach = playersWithinReach.some(p => p.Character.name === VOLDEMORT);
         if (isVoldemortWithinReach) {
           if (GOOD_FORCES.includes(self.Character.name)) {
@@ -1311,8 +1314,18 @@ function playBotTurn(player, botState, gameInfo) {
   */
   
 
-  const activePlayersWithinReach = getActivePlayersWithinReach(player, gameInfo),
+  const activePlayersWithinReach = getPlayersWithinReach(player, gameInfo, true),
+  eliminatedPlayersWithinReach = getPlayersWithinReach(player, gameInfo, false),
+  eliminatedAlliesWithinReach = eliminatedPlayersWithinReach.filter(p => {
+    const state = botState.find(p => p.playerID === player.ID);
+    const playerDeduction = state.playerDeductions.find(pB => pB.playerID === p.ID);
+    return playerDeduction.verdict === VERDICTS.ALLY;
+  }),
   activeFoesWithinReach = activePlayersWithinReach.filter(p => {
+    if (p.FaceUpCards.some(c => c.type === CardTypes.DH && c.suite === HALLOWS.CI)) {
+      // since spells have no effect on opponent with Cloak of Invisiblity  
+      return false;
+    }
     const state = botState.find(p => p.playerID === player.ID);
     const playerDeduction = state.playerDeductions.find(pB => pB.playerID === p.ID);
     return playerDeduction.verdict === VERDICTS.FOE;
@@ -1345,14 +1358,30 @@ function playBotTurn(player, botState, gameInfo) {
     }
     return a.HorcruxCount -  b.HorcruxCount;
   });
-  const attackingCardTypes = [CardTypes.AVADAKEDAVRA, CardTypes.ACCIO, CardTypes.EXPELLIARMUS];
+
+  var attackingCardTypes, playAsAK = false;
+  if (player.FaceUpCards.some(c => c.type === CardTypes.DH && c.suite === HALLOWS.EW)) {
+    attackingCardTypes = [CardTypes.EXPELLIARMUS, CardTypes.ACCIO, CardTypes.AVADAKEDAVRA];
+    playAsAK = true;
+  }
+  else {
+    attackingCardTypes = [CardTypes.AVADAKEDAVRA, CardTypes.ACCIO, CardTypes.EXPELLIARMUS];
+  }
   const attackingCard = attackingCardTypes.reduce((acc, type) => {
     if (acc) {
       return acc;
     }
     return player.Hand.find(c => c.type === type);
   }, null);
-  if (attackingCard && activeFoesWithinReach.length) {
+
+  if (player.FaceUpCards.some(c => c.type === CardTypes.DH && c.suite === HALLOWS.RS) && eliminatedAlliesWithinReach.length) {
+    const resurrectPlayer = eliminatedAlliesWithinReach[0];
+    resurrectPlayer.HorcruxCount += 1;
+    const rsEvent = `${resurrectPlayer.Character.name} was resurrected by ${player.Character.name}`;
+    console.log(rsEvent);
+    gameInfo.Events.push(rsEvent);
+  }
+  else if (attackingCard && activeFoesWithinReach.length) {
     var targetIdx = 0;
     var targetedPlayerId = activeFoesWithinReach[0].ID;
     const allGoodForceEliminated = gameInfo.Players.filter(p => p.Character.revealed
@@ -1373,8 +1402,8 @@ function playBotTurn(player, botState, gameInfo) {
         targetedPlayerId = foesWithoutVoldemort[targetIdx].ID;
       }
     }
-    playAttackingCard(attackingCard, player, targetedPlayerId, gameInfo, botState);
-    if ([CardTypes.ACCIO, CardTypes.EXPELLIARMUS].includes(attackingCard.type)) {
+    playAttackingCard(attackingCard, playAsAK, player, targetedPlayerId, gameInfo, botState);
+    if ([CardTypes.ACCIO, CardTypes.EXPELLIARMUS].includes(attackingCard.type) && !playAsAK) {
       notifyDefense(gameInfo, botState);
     }
     else {
