@@ -1019,6 +1019,8 @@ function playAttackingCard(card, playAsAK, player, targetedPlayerId, gameInfo, b
     if (!targetedPlayer.HorcruxCount) {
       console.log(targetedPlayer.Character.name + ' eliminated');
       targetedPlayer.Character.revealed = true;
+      gameInfo.DiscardPile.push(...targetedPlayer.Hand);
+      targetedPlayer.Hand = [];
     }
     gameInfo.Events.push(akEvent);
   }
