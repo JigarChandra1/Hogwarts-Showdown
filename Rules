@@ -1,0 +1,82 @@
+Board game idea: Hogwarts Showdown
+
+Inspiration: BANG! and Exploding Kittens
+
+Characters:
+Voldemort
+2 Death-Eaters : Bellatrix and Lucius-Malfoy
+Peter Pettigrew: belongs to neither side, goal is to be last player standing
+Good Forces:
+	3 Aurors: Kingsley, MadEyeMoody and Tonks
+	Dumbledore
+	Harry-Potter	
+
+Setup based on number of players:
+4 players: Voldemort , Pettigrew, 2 Good-Forces
+5 players: Voldemort, 1 Death-Eater, Pettigrew, 2 Good-Forces
+6 players: Voldemort, 1 Death-Eater, Pettigrew, 3 Good-Forces
+7 players: Voldemort, 2 Death-Eaters, Pettigrew, 3 Good-Forces
+
+
+Cards:
+5 + 6 x 3 + 4 = 32 Horcrux
+10 Crystal Level 2
+7 Crystal Level 3
+7 x 4 = 28 Chocolate Frog cards
+6 x 3 + 4 + 7 = 29 Aveda-Kedavra cards
+7 Expelliarmus cards
+21 Protego cards
+18 Accio cards 
+3 Deathly Hallows
+
+Game Setup:
+Each player selects a character card from the randomly put-out cards on the table
+Voldemort gets 4 horcruxes, all other players gets 3 horcruxes
+Remaining 5 Horcrux cards are kept aside
+7 Aveda-Kedavra cards are kept aside
+Each player gets 5 cards from shuffled deck of cards
+Players with special-character card must reveal themselves, all other players reveal themselves only when they are killed
+
+Similar to bang, Horcrux represents bullets \ health
+Spells instead of shooting
+Avada kedavra takes away 1 health \ horcrux unless countered by Lily's Charm
+Accio charm - allows to steal a random pick card from any player within spell reach; can be countered by Protego in which case it reverses and opponent gets to pick
+Lily's Charm: Destroys 1 horcrux of both attacker and defender
+Expelliarmus: Skips 1 turn of the opponent unless countered by Protego Charm in which case the player who cast the Expelliarmus gets their turn skipped
+Protego: Can be used to counter the Expelliarmus, Accio and a Protego
+Crystall Ball: the number indicated on the ball indicates how far (number of players to their sides) can a player cast the spell
+Chocolate Frog Cards (CFC): 
+	Have a House name and a celebrity.
+	Can trade 3 cards of the same house or same number for an Aveda-Kedavra spell or a Horcrux
+	Can trade 4 cards of the same house for a Deathly-Hallow card which is selected randomly
+Elder Wand: Can draw 1 Aveda-Kedavra card at the start of a turn but discard excess cards before performing any other action
+Invisibility Cloak: Cannot perform Expelliarmus and Aveda-Kedavra on a player possessing the Invisibility Cloak card; can perform Accio Charm
+Resurrection Stone: Can resurrect any player within the spell reach; Strategy:Pettigrew may resurrect a player of the losing-team
+
+Drawing and discarding cards:
+Any card played goes to discard pile
+On end of a player's turn, they must draw a card from the deck (2 cards if Dumbledore) and discard excess cards if they have more than 5 cards
+
+Objectives:
+Voldemort, Death-Eaters: Kill Aurors, Dumbledore, Harry-Potter and Pettigrew
+Aurors, Dumbledore, Harry-Potter: Kill Voldemort
+Pettigrew: Be last player standing; loses if Voldemort is killed by Good Forces (needs to kill Voldemort last)
+All players: Possess all 3 Deathly Hallows and game ends instantly.
+
+Special characters:
+Voldemort: Gets 4 horcrux at the start of game
+Dumbledore: draws 2 cards during the draw phase
+Harry-Potter: Lily's charm gets activated any time Voldemort casts an Aveda-Kedavra on this character
+All special characters must reveal themselves at the start of the game
+
+
+Playing a card:
+1. Select (click) the card, the card pops up
+2. Select the popped card to play the card
+3. If the card is chocolate frog card, must select 3 other cfc of same house to trade for a Aveda-Kedavra or a Horcrux
+4. Can play as many non-spell cards at the start of a turn; Non-spell cards = Crystal Ball, CFC, Deathly Hallows
+
+*****Future Mods******
+Can also trade for sequence of 3 cards for HC or AK and 4 cards for D.H
+Each character can have a special trait
+Apparate move can help dodge any spell (including Aveda)

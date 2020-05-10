@@ -1,0 +1,57 @@
+Game setup
+	- assign characters
+	- distribute cards
+
+	gameInfo
+		- Players
+			- FaceUpCards : Array
+			- Hand:			Array
+			- Character:
+						name
+						revealed
+			- HorcruxCount
+			- ID: 0... (for turn keeping)
+			- name
+			- isDisarmed: true \ false (Expelliarmus performed)
+			- globalPlayerID
+			- isBot: true \ false
+		- DiscardPile
+		- MainDeck
+		- HorcruxDeck
+		- AvedaKedavraDeck
+		- DeathlyHallowDeck
+		- currPlayerTurnID
+		- preDrawnCard: true \ false whether currPlayer drew card before attack
+		- baseAttackCardType: which card started attack defend cycle
+		- currAttackerPlayerTurnID
+		- currTargetedPlayerTurnID
+		- Rounds
+		- Events
+		- GameEnded: true \ false
+
+	botState
+		- playerID
+		- strategy: HallowGreedy, AvadaHorcruxGreedy, SpellGreedy
+        - playerDeductions (Array)
+            -   playerID
+            -   verdict: unknown \ foe \ ally
+
+Card
+	- type: Horcrux \ Aveda \ Expelliarmus ...
+	- suite: Gryffindor \ Ravenclaw ...
+	- number: 1..7
+
+playCard (Card, targetedPlayerID)
+	- end turn if Avada-Kedava spell card played
+
+drawCard internally at the end of turn
+
+drawSpecialCard
+
+trade (Array of cards)
+
+---------------
+
+Incremental build:
+1. draw card, playCard: Avada , discard excess, hit randomly, end turn, log events and round
+2. use Expelliarmus, Protego
