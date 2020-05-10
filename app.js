@@ -709,8 +709,19 @@ function drawCard(player, gameInfo) {
   }
 }
 
+function getCardShortHand(card) {
+  if (card.type === CardTypes.CFC) {
+    return card.suite.charAt(0) + card.number
+  }
+  if (card.type === CardTypes.CB) {
+    return 'CB' + card.number
+  }
+  else return card.type
+}
+
 function discardCard(cardIdx, player, gameInfo) {
   const card = player.Hand.splice(cardIdx, 1)[0];
+  console.log(`${player.Character.name} discarded ${getCardShortHand(card)}`);
   gameInfo.DiscardPile.push(card);
 }
 
@@ -743,37 +754,57 @@ function hasNumberCombination(cfcCards, count) {
   return false;
 }
 
+function getNumbersSummingToTarget(targetSum, reqNumbers, sortedArray, fromIdx, result) {
+  if (fromIdx === sortedArray.length) {
+      return [false];
+  }
+  if (reqNumbers === 1) {
+    if (sortedArray.slice(fromIdx, sortedArray.length).includes(targetSum)) {
+      return [true, result.concat(targetSum)];
+    } else {
+      return [false];
+    }
+  } 
+  const results = [];
+  for (let i = fromIdx; i < sortedArray.length; i++) {
+    results.push(getNumbersSummingToTarget(targetSum - sortedArray[i], reqNumbers - 1, sortedArray, i + 1, result.concat(sortedArray[i])));
+  }
+  const hasSum = results.find(r => r[0]);
+  if (hasSum) {
+    return hasSum;
+  }
+  return [false];
+}
+
 function hasCombination(HandCards, count) {
-  const cfcCards = HandCards.filter(c => c.type === CardTypes.CFC);
-  if (hasConsecutiveCombination(cfcCards, count) || hasNumberCombination(cfcCards, count)) {
-    return true;
-  }
-  return false;
+  const cfcCards = HandCards.filter(c => c.type === CardTypes.CFC),
+  sortedCfcNumbers = cfcCards.map(c => c.number).sort((a, b) => a - b);
+  const combination = getNumbersSummingToTarget(7, 3, sortedCfcNumbers, 0, []);
+  return combination[0];
 }
 
-function hasRedundantCFC(HandCards) {
-  const cfcCards = player.Hand.filter(c => c.type === CardTypes.CFC);
-  const consecutiveCombination = hasConsecutiveCombination(cfcCards, 2);
-  const numberCombination = hasNumberCombination(cfcCards, 2);
-  if (consecutiveCombination && numberCombination) {
-    return false;
-  }
-  return true;
+function getIneligibleCFCIndex(HandCards) {
+  return HandCards.findIndex(c => c.type === CardTypes.CFC && c.number > 5);
 }
 
-function getNonCombinationCFCIndex(HandCards) {
-  const cfcCards = player.Hand.filter(c => c.type === CardTypes.CFC);
-  const countBySuites = _.groupBy(cfcCards, c => c.suite);
-  const possibleCombinationSuite = Object.keys(countBySuites).find(k => countBySuites[k].length === 2);
-  if (possibleCombinationSuite) {
-    return player.Hand.findIndex(c => c.type === CardTypes.CFC && c.suite !== possibleCombinationSuite);
+function getRedundantCFCIndex(HandCards) {
+  const highCfcCards = HandCards.filter(c => c.type === CardTypes.CFC && c.number >= 4);
+  const groupByNumber = _.groupBy(highCfcCards, c => c.number);
+  const redundantCardNumber = Object.keys(groupByNumber).find(number => groupByNumber[number].length >= 2);
+  if (redundantCardNumber) {
+    return HandCards.findIndex(c => c.type === CardTypes.CFC && c.number === redundantCardNumber);
   }
-  const countByNumber = _.groupBy(cfcCards, c => c.number);
-  const possibleCombinationNumber = Object.keys(countByNumber).find(k => countByNumber[k].length === 2);
-  if (possibleCombinationNumber) {
-    return player.Hand.findIndex(c => c.type === CardTypes.CFC && c.number !== possibleCombinationNumber);
-  }
-  return player.Hand.findIndex(c => c.type === CardTypes.CFC);
+  return -1;
+}
+
+function shouldDiscardCfc(HandCards) {
+  return Math.floor(Math.random()*100) > 50;
+}
+
+function getRandomCFCIndex(HandCards) {
+  const cfcCardIndexes = player.Hand.map((c, idx) => c.type === CardTypes.CFC ? idx : -1).filter(idx => idx !== -1);
+  const idx = Math.floor(Math.random() * cfcCardIndexes.length);
+  return cfcCardIndexes[idx];
 }
 
 function discardExcessCards(player, gameInfo) {
@@ -790,10 +821,22 @@ function discardExcessCards(player, gameInfo) {
 
       // TODO: track count of discarded CFC by suite to access odds of getting 
       // a CFC of our suite
+      const ineligibleCFCIndex = getIneligibleCFCIndex(player.Hand);
+      if (ineligibleCFCIndex > -1) {
+        discardCard(ineligibleCFCIndex, player, gameInfo);
+        continue;
+      }
+
+      const redundantCFCIndex = getRedundantCFCIndex(player.Hand);
+      if (redundantCFCIndex > -1) {
+        discardCard(redundantCFCIndex, player, gameInfo);
+        continue;
+      }
+
       const cfcCount = player.Hand.filter(c => c.type === CardTypes.CFC);
       if (cfcCount > 3) {
-        if (!hasCombination(player.Hand, 3) && hasRedundantCFC(player.Hand)) {
-          const cardIdx = getNonCombinationCFCIndex(player.Hand);
+        if (!hasCombination(player.Hand, 3) && shouldDiscardCfc()) {
+          const cardIdx = getRandomCFCIndex(player.Hand);
           discardCard(cardIdx, player, gameInfo);
           continue;
         }
@@ -823,20 +866,17 @@ function discardExcessCards(player, gameInfo) {
 }
 
 function getHallowCard(player, gameInfo) {
-  const cfcCards = player.Hand.filter(c => c.type === CardTypes.CFC);
-  const countBySuites = _.groupBy(cfcCards, c => c.suite);
-  const countByNumber = _.groupBy(cfcCards, c => c.number);
-  const possibleCombinationSuite = Object.keys(countBySuites).find(k => countBySuites[k].length >= 3);
-  var otherCards, tradeableCards;
-  if (possibleCombinationSuite) {
-    // TODO: take sequence into account since player could have 4 cards 
-    otherCards = Array.from(player.Hand.filter(c => c.type === CardTypes.CFC && c.suite !== possibleCombinationSuite)).slice(0, 3);
-    tradeableCards = Array.from(player.Hand.filter(c => c.type === CardTypes.CFC && c.suite === possibleCombinationSuite)).slice(0, 3);
-  } else {
-    const possibleCombinationNumber = Object.keys(countByNumber).find(k => countByNumber[k].length >= 3);
-    otherCards = Array.from(player.Hand.filter(c => c.type === CardTypes.CFC && c.number !== possibleCombinationNumber)).slice(0, 3);
-    tradeableCards = Array.from(player.Hand.filter(c => c.type === CardTypes.CFC && c.number !== possibleCombinationNumber)).slice(0, 3);
+  const cfcCards = player.Hand.filter(c => c.type === CardTypes.CFC),
+  sortedCfcNumbers = cfcCards.map(c => c.number).sort((a, b) => a - b);;
+  const cfcNumbers = getNumbersSummingToTarget(7, 3, sortedCfcNumbers, 0, [])[1];
+  const indexes = [];
+  for (let i = 0; i < cfcNumbers.length; i++) {
+    const number = cfcNumbers[i];
+    const idx = player.Hand.find((c, cIdx) => c.type === CardTypes.CFC && c.number === number && !indexes.includes(cIdx));
+    indexes.push(idx);
   }
+  const otherCards = Array.from(player.Hand.filter((c, cIdx) => !indexes.includes(cIdx)));
+  const tradeableCards = Array.from(player.Hand.filter((c, cIdx) => indexes.includes(cIdx)));
   const event = `Player ${player.ID} (${player.name}) discarded: ${JSON.stringify(tradeableCards, null, 2)}`;
     gameInfo.DiscardPile.concat(tradeableCards);
     player.Hand = otherCards;
@@ -1234,8 +1274,7 @@ function playBotTurn(player, botState, gameInfo) {
   if (player.Hand.length > MAX_HAND_CARDS) {
     discardExcessCards(player, gameInfo);
   }
-  console.log(`Turn ${player.Character.name}, Horcrux:${player.HorcruxCount}, Hand: ${player.Hand.map(c => c.type === CardTypes.CFC ? c.suite.charAt(0) + c.number 
-    : c.type).join(',')} , FaceUp: ${player.FaceUpCards.map(c => c.type === CardTypes.CB ?
+  console.log(`Turn ${player.Character.name}, Horcrux:${player.HorcruxCount}, Hand: ${player.Hand.map(c => getCardShortHand(c)).join(',')} , FaceUp: ${player.FaceUpCards.map(c => c.type === CardTypes.CB ?
        c.type.charAt(0) + c.number : c.type + c.suite).join(',')}`);
   /**
    * 1. Trade CFC if possible with a 40 \ 60 odd of trading 3 \ 4 CFC
