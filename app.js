@@ -51,7 +51,7 @@ const CRYSTAL_BALLS = [[2, 10], [3, 7]].reduce((acc, arr) => {
 
 const CFC = [[3, 10]].reduce((acc, arr) => {
   for (let i = 0; i < arr[0]; i++) {
-    for (let j = 1; j <= arr[1]; j++) {
+    for (let j = 0; j < arr[1]; j++) {
       acc.push(new Card(CardTypes.CFC, CFC_SUITES[i], j));
     };
   }
@@ -784,7 +784,7 @@ function hasCombination(HandCards, count) {
 }
 
 function getIneligibleCFCIndex(HandCards) {
-  return HandCards.findIndex(c => c.type === CardTypes.CFC && c.number > 5);
+  return HandCards.findIndex(c => c.type === CardTypes.CFC && c.number > 7);
 }
 
 function getRedundantCFCIndex(HandCards) {
