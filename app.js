@@ -1192,17 +1192,7 @@ function accioRandomCard(attacker, targeted, gameInfo) {
 }
 
 function accioFaceUpCard(attacker, targeted, gameInfo) {
-  const types = [CardTypes.DH, CardTypes.CB];
-  const idx = types.reduce((acc, type) => {
-    if (acc !== -1) {
-      return acc;
-    }
-    const cardIdx = targeted.FaceUpCards.findIndex(c => c.type === type);
-    if (cardIdx !== -1) {
-      return cardIdx
-    }
-    return acc;
-  }, -1);
+  const idx = targeted.FaceUpCards.findIndex(c => c.type === CardTypes.CB);
   if (idx !== -1) {
     const card = targeted.FaceUpCards.splice(idx, 1)[0];
     attacker.Hand.push(card);
@@ -1221,7 +1211,7 @@ function notifyAccioChoose(gameInfo) {
   const currAttacker = gameInfo.Players.find(p => p.ID === gameInfo.currAttackerPlayerTurnID);
   const targetedPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currTargetedPlayerTurnID);
   if (currAttacker.isBot) {
-    if (targetedPlayer.FaceUpCards.length) {
+    if (targetedPlayer.FaceUpCards.length && targetedPlayer.FaceUpCards.some(c => c.type !== CardTypes.DH)) {
       const chooseFaceUp = Math.floor(Math.random() * 100) < 50;
       if (chooseFaceUp) {
         accioFaceUpCard(currAttacker, targetedPlayer, gameInfo);
