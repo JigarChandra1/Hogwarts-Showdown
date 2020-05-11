@@ -591,7 +591,8 @@ function initGame(roomInfo){
     DeathlyHallowDeck: shuffle(Array.from(DH)),
     Rounds: 0,
     Events: [],
-    HallowsObtained: 0
+    HallowsObtained: 0,
+    PlayersAttemptedHallowFromEmptyDeck: []
   };
   const shuffledPlayerIds = shuffle([0,1,2,3,4,5,6]);
   for (let i = 0; i < len; i++) {
@@ -1003,6 +1004,15 @@ function playAttackingCard(card, playAsAK, player, targetedPlayerId, gameInfo, b
       targetedPlayer.Character.revealed = true;
       gameInfo.DiscardPile.push(...targetedPlayer.Hand);
       targetedPlayer.Hand = [];
+      const dhCards = targetedPlayer.FaceUpCards.filter(c => c.type === CardTypes.DH);
+      if (dhCards.length) {
+        gameInfo.DeathlyHallowDeck.push(...dhCards);
+      }
+      const cbCards = targetedPlayer.FaceUpCards.filter(c => c.type === CardTypes.CB);
+      if (cbCards.length) {
+        gameInfo.DiscardPile.push(...cbCards);
+      }
+      targetedPlayer.FaceUpCards = [];
     }
     gameInfo.Events.push(akEvent);
   }
@@ -1273,8 +1283,15 @@ function playBotTurn(player, botState, gameInfo) {
    * 3. Notify human if targeted, else invoke bot turn for defending
    */
 
-  if (hasCombination(player.Hand, 3) && deckHasHallowCards(gameInfo)) {
-    getHallowCard(player, gameInfo);
+  if (hasCombination(player.Hand, 3)) {
+    if (deckHasHallowCards(gameInfo)) {
+      getHallowCard(player, gameInfo);
+    }
+    else {
+      if (!gameInfo.PlayersAttemptedHallowFromEmptyDeck.includes(player.ID)) {
+        gameInfo.PlayersAttemptedHallowFromEmptyDeck.push(player.ID);
+      }
+    }
   }
   checkAndActivateCB(player, gameInfo);
 
@@ -1454,7 +1471,7 @@ for (let i = 0; i < 100; i++) {
       currPlayer = gameInfo.Players[idx];
       playBotTurn(currPlayer, botState, gameInfo);
   }
-  const stat = _.pick(roomInfo.gameInfo, ['GoodForceWins', 'EvilForceWins', 'PeterWins', 'Rounds', 'WinsByHallow', 'Aborted', 'HallowsObtained']);
+  const stat = _.pick(roomInfo.gameInfo, ['GoodForceWins', 'EvilForceWins', 'PeterWins', 'Rounds', 'WinsByHallow', 'Aborted', 'HallowsObtained', 'PlayersAttemptedHallowFromEmptyDeck']);
   gameStats.push(stat);
 }
 const results = {};
@@ -1467,6 +1484,7 @@ results.avgPeterRounds = Math.floor(gameStats.filter(g => g.PeterWins).map(g => 
 results.winsByHallow = gameStats.filter(g => g.WinsByHallow).length;
 results.aborted = gameStats.filter(g => g.Aborted).length;
 results.hallowsObtained = gameStats.map(g => g.HallowsObtained).reduceRight((total, count) => total + count, 0);
+results.PlayersAttemptedHallowFromEmptyDeck = gameStats.map(g => g.PlayersAttemptedHallowFromEmptyDeck.length).reduceRight((total, count) => total + count, 0);
 console.log('Results: ' + JSON.stringify(results, null, 2));
 process.exit();
 
