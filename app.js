@@ -58,7 +58,7 @@ const CFC = [[3, 10]].reduce((acc, arr) => {
   return acc;
 }, []);
 
-const AVADAKEDAVRA = [29].reduce((acc, cnt) => {
+const AVADAKEDAVRA = [22].reduce((acc, cnt) => {
   for (let i = 0; i < cnt; i++) {
     acc.push(new Card(CardTypes.AVADAKEDAVRA));
   }
@@ -588,8 +588,6 @@ function initGame(roomInfo){
   const gameInfo = {
     Players: [], 
     DiscardPile: [],
-    HorcruxDeck: Array.from(HORCRUXES),
-    AvadaKedavraDeck: Array.from(AVADAKEDAVRA).splice(0, 7),
     DeathlyHallowDeck: shuffle(Array.from(DH)),
     Rounds: 0,
     Events: [],
@@ -888,22 +886,6 @@ function getHallowCard(player, gameInfo) {
     console.log(hallowEvent);
     gameInfo.HallowsObtained += 1;
     gameInfo.Events.push(hallowEvent);
-}
-
-function getHorcruxCard(player, gameInfo) {
-  gameInfo.HorcruxDeck.pop();
-  player.HorcruxCount += 1;
-  const horcruxEvent = `Player ${player.ID} (${player.name}) obtained Horcrux Card`;
-  console.log(horcruxEvent);
-  gameInfo.Events.push(horcruxEvent);
-}
-
-function getAvadaKedavraCard(player, gameInfo) {
-  const card  = gameInfo.AvadaKedavraDeck.pop();
-  player.Hand.push(card);
-  const akEvent = `Player ${player.ID} (${player.name}) obtained Avada Kedavra Card`;
-  console.log(akEvent);
-  gameInfo.Events.push(akEvent);
 }
 
 function deckHasHallowCards(gameInfo) {
