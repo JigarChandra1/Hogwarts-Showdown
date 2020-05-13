@@ -151,19 +151,9 @@ function initRoomInfo(rid){
   let roomInfo =
   {
     playerList : [],
-    timelimit : 60,
-    TLCur : 0,
-    noDupMode : false,
-    curWordListName : defaultWordListName,
     gameInfo : {
-      responses: [],
-      votes: [],
-      numberOfRounds: 5,
-      currRound: 0,
-      results: [],
-      awaitingResponders: [],
-      awaitingVoters: []
-    }
+    },
+    state: ""
   };
   setRoomInfo(rid,roomInfo);
 }
@@ -244,38 +234,15 @@ function playerJoinRoom(pid,rid){
     plyState.isReady4Gaming = true;
     plyState.isReady4NextRound = true;
     plyState.state = "InRoom";
-  } else {
-    if (getPlayerState(roomInfo.playerList[0]).state !== "InRoom") {
-      plyState.state = getPlayerState(roomInfo.playerList[0]).state;
-      roomInfo.playerList.push(pid);
-      if (["Results", "GamingEnded"].includes(plyState.state)) {
-        plyState._socket.emit('Results',gameInfo.results[gameInfo.results.length - 1]);
-        if (plyState.state === "GamingEnded") {
-          plyState._socket.emit('gameEnd');
-        }
-      }
-      else if (gameInfo.votes.length) { // Restart round only if voting is in progress since new players response would not get considered
-        restartRound(rid, plyState.playerName, true);
-      } else {
-        plyState._socket.emit('clueInfo',{
-          clue: CLUES[gameInfo.currClueCategory][gameInfo.currClueIndex][0],
-          category: gameInfo.currClueCategory
-        });
-        plyState._socket.emit('InProgressGameInfo',gameInfo);
-        gameInfo.awaitingResponders.push(plyState.playerName);
-      }
-      plyState.currentRoom = rid;
-      return;
-    }
-    else {plyState.state = "InRoom";}
   }
+  else {
+    plyState.isRoomMaster = false;
+  }
+  plyState.playerName = 'Player ' + pid;
   plyState.currentRoom = rid;
   roomInfo.playerList.push(pid);
 }
 
-function registerNewBot(rid) {
-
-}
 
 function notifyRoomInfo(rid){
   // Pushing all info to client
@@ -297,7 +264,6 @@ function notifyRoomInfo(rid){
     });
   }
   io.to(roomchannel(rid)).emit('roomInfo',{
-    timelimit : roomInfo.timelimit,
     players : playerBuf
   });
 }
@@ -321,16 +287,6 @@ function shuffle(array) {
   return array;
 }
 
-function notifyVotingOptions(rid) {
-  const gameInfo = getGameInfo(rid),
-  answer = CLUES[gameInfo.currClueCategory][gameInfo.currClueIndex][1].toLowerCase(),
-  shuffledResponses = shuffle(gameInfo.responses.map(r => {
-    const option = r.response ? r.response.toLowerCase(): "";
-    return { option: option, playerID: r.playerID };
-  }).concat([{option: answer}]));
-  io.to(roomchannel(rid)).emit('votingOptions', shuffledResponses);
-}
-
 function reelectMaster(rid){
   let roomInfo = getRoomInfo(rid);
   let len = roomInfo.playerList.length;
@@ -344,25 +300,6 @@ function reelectMaster(rid){
   playerState[id].isReady4Gaming = true;
 }
 
-function resetGameInfo(rid) {
-  const gameInfo = getGameInfo(rid);
-  gameInfo.responses = [];
-  gameInfo.votes = [];
-  gameInfo.awaitingResponders = [];
-  gameInfo.awaitingVoters = [];
-  if (gameInfo.results.length === gameInfo.currRound + 1) {
-    // Remove the current result
-    gameInfo.results.splice(gameInfo.results.length -1, 1);
-  }
-  let roomInfo = getRoomInfo(rid);
-  roomInfo.playerList.forEach(pId => {
-    getPlayerState(pId).isReady4NextRound = false;
-    getPlayerState(pId).state = "Gaming";
-    gameInfo.awaitingResponders.push(getPlayerState(pId).playerName);
-    gameInfo.awaitingVoters.push(getPlayerState(pId).playerName);
-  });
-}
-
 function removePlayer(pid){
   let rid = getPlayerState(pid).currentRoom;
   let roomInfo = getRoomInfo(rid);
@@ -373,71 +310,6 @@ function removePlayer(pid){
     //When RoomMaster was removed we need reelection
     reelectMaster(rid);
   }
-  notifyRoomInfo(rid);
-}
-
-function isAllReady(rid){
-  let roomInfo = getRoomInfo(rid);
-  // If only one player in room, refuse to start
-  if(roomInfo.playerList.length<2){
-    return false;
-  }
-  for(let i=0;i<roomInfo.playerList.length;i++){
-    let id=roomInfo.playerList[i];
-    let pinfo = getPlayerState(id);
-    if(pinfo.isReady4Gaming==false){
-      return false;
-    }
-  }
-  return true;
-}
-
-function isAllResponded(rid){
-  let roomInfo = getRoomInfo(rid);
-  const gameInfo = getGameInfo(rid);
-  return gameInfo.responses.length === roomInfo.playerList.length;
-}
-
-function isAllVoted(rid){
-  let roomInfo = getRoomInfo(rid);
-  const gameInfo = getGameInfo(rid);
-  return gameInfo.votes.length === roomInfo.playerList.length;
-}
-
-function isAllReady4NextRound(rid) {
-  let roomInfo = getRoomInfo(rid);
-  return roomInfo.playerList.every(pId => getPlayerState(pId).isReady4NextRound);
-}
-
-function evaluateRound(rid) {
-  const gameInfo = getGameInfo(rid),
-  correctAnswererPlayerIds = gameInfo.votes.filter(v => v.vote === CLUES[gameInfo.currClueCategory][gameInfo.currClueIndex][1].toLowerCase()).map(v => v.playerID),
-  spooks = gameInfo.responses.map(r => {
-    return {
-      SPOOKER_PLAYER_ID: r.playerID,
-      SPOOKER_PLAYER_NAME: r.playerName,
-      SPOOKED_PLAYER_IDS: gameInfo.votes.filter(v => v.vote.toLowerCase() === r.response.toLowerCase()).map(v => v.playerID),
-      SPOOKED_PLAYER_NAMES: gameInfo.votes.filter(v => v.vote.toLowerCase() === r.response.toLowerCase()).map(v => v.playerName),
-      response: r.response
-    };
-  }),
-  results = {
-            responses: _.cloneDeep(gameInfo.responses), 
-            votes: _.cloneDeep(gameInfo.votes),
-            correctAnswer: CLUES[gameInfo.currClueCategory][gameInfo.currClueIndex][1],
-            spooks: spooks,
-            correctAnswererPlayerIds: correctAnswererPlayerIds
-          };
- 
-  spooks.forEach(s => {
-    playerState[s.SPOOKER_PLAYER_ID].score += s.SPOOKED_PLAYER_IDS.length
-    if(correctAnswererPlayerIds.includes(s.SPOOKER_PLAYER_ID)) {
-      playerState[s.SPOOKER_PLAYER_ID].score += 1
-    }
-  });
-  io.to(roomchannel(rid)).emit('Results', results);
-  gameInfo.results.push(results);
-  setAllPlayerStates(rid, "Results");
   notifyRoomInfo(rid);
 }
 
@@ -459,92 +331,13 @@ function initGameInfo(rid){
   setGameInfo(rid,gameInfo);
 }
 
-function getNextWord(rid){
-  let roomInfo = getRoomInfo(rid);
-  const wordList = wordLists[roomInfo.curWordListName];
-  let len = wordList.length;
-  let target = Math.floor((Math.random()*len));
-  return wordList[target];
-}
-
-function getNextClueIndex(category) {
-  const idx = Math.floor((Math.random()*(CLUES[category].length - 1)));
-  return idx;
-}
-
-function getNextClueCategory() {
-  const idx = Math.floor((Math.random()*(Object.keys(CLUES).length - 1)));
-  return Object.keys(CLUES)[idx];
-}
-
-function notifyNextWord(rid){
-  let roomInfo = getRoomInfo(rid);
-  let gameInfo = getGameInfo(rid);
-  let nextword = getNextWord(rid);
-  if(roomInfo.noDupMode){
-    while(!gameInfo.wordGuessed[nextword]){
-      nextword = getNextWord(rid);
-    }
-  }
-  gameInfo.wordGuessed[nextword] = true;
-  for(let i=0;i<roomInfo.playerList.length;i++){
-    let id=roomInfo.playerList[i];
-    let pinfo = getPlayerState(id);
-    if(pinfo.playerRole!="Player"){
-      pinfo._socket.emit('wordToGuess',nextword);
-    }
-    else{
-      pinfo._socket.emit('wordToGuess',""); 
-    }
-  }
-}
-
-function notifyNextClue(rid){
-  let roomInfo = getRoomInfo(rid);
-  let gameInfo = getGameInfo(rid);
-  let nextClueCategory = getNextClueCategory(),
-  nextClueIndex = getNextClueIndex(nextClueCategory),
-  nextClue = CLUES[nextClueCategory][nextClueIndex];
-
-  gameInfo.currClueIndex = nextClueIndex;
-  gameInfo.currClueCategory = nextClueCategory;
-  // handle already asked clues
-  for(let i=0;i<roomInfo.playerList.length;i++){
-    let id=roomInfo.playerList[i];
-    let pinfo = getPlayerState(id);
-    pinfo._socket.emit('clueInfo',{
-      clue: nextClue[0],
-      category: nextClueCategory
-    });
-  }
-}
-
-function generateWinnerNames(players) {
-  var max = -Infinity;
-  var winnerNames = [];
-  for (var i = 0; i < players.length; i++) {
-      if (players[i].score === max) {
-        winnerNames.push(players[i].playerName);
-      } else if (players[i].score > max) {
-          winnerNames = [players[i].playerName]
-          max = players[i].score;
-      }
-  }
-  return winnerNames;
-}
-
-function notifyGameEnd(rid){
-  const roomInfo = getRoomInfo(rid),
-  gameInfo = getGameInfo(rid);
-  const players = roomInfo.playerList.map(pId => getPlayerState(pId));
-  gameInfo.winnerNames = generateWinnerNames(players);
-  notifyGameInfo(rid);
-  setAllPlayerStates(rid, "GamingEnded");
-  io.to(roomchannel(rid)).emit('gameEnd',"");
-  cleanUpGame(rid);
-}
-function notifyGameInfo(rid){
+async function notifyGameInfo(rid){
   io.to(roomchannel(rid)).emit('gameInfo',getGameInfo(rid));
+  await new Promise(resolve => setTimeout(resolve, 5000));
+}
+
+function getPlayerName(player) {
+  return player.Character.revealed ? player.Character.name : 'Player ' + player.ID;
 }
 
 function getCharacterCards() {
@@ -599,6 +392,7 @@ function initGame(roomInfo){
       const pinfo = getPlayerState(roomInfo.playerList[i]);
       const ID = shuffledPlayerIds[i];
       pinfo.ID = ID;
+      pinfo._socket.emit("id",ID);
       const characterCard = characterCards[i],
         revealed = [VOLDEMORT, ALBUS, HARRY].includes(characterCard);
       
@@ -646,9 +440,10 @@ function initGame(roomInfo){
   gameInfo.MainDeck = MAIN_CARDS;
   gameInfo.currPlayerTurnID = gameInfo.Players[0].ID;
   setInitialBotDeductions(roomInfo.botState, gameInfo.Players);
-  //console.log('Verify player deductions: ' + JSON.stringify(roomInfo.botState, null, 2));
   roomInfo.gameInfo = gameInfo;
-  console.log(gameInfo.Players.map((p, idx) => idx + ' ' + p.Character.name).join(','));
+  if (!roomInfo.playerList && !roomInfo.playerList.length) {
+    console.log(gameInfo.Players.map((p, idx) => idx + ' ' + p.Character.name).join(','));
+  }
 }
 
 function setAllPlayerStates(rid, state) {
@@ -694,7 +489,7 @@ function drawCard(player, gameInfo) {
     gameInfo.DiscardPile = [];
   }
   const card = gameInfo.MainDeck.shift();
-  console.log(`${player.Character.name} drew a ${card.type}`);
+  console.log(`${getPlayerName(player)} drew a ${card.type}`);
   player.Hand.push(card);
   if (player.Character.name === ALBUS) {
     if (!gameInfo.MainDeck.length) {
@@ -703,7 +498,7 @@ function drawCard(player, gameInfo) {
       gameInfo.DiscardPile = [];
     }
     const otherCard = gameInfo.MainDeck.shift();
-    console.log(`${player.Character.name} drew a ${otherCard.type}`);
+    console.log(`${getPlayerName(player)} drew a ${otherCard.type}`);
     player.Hand.push(otherCard);
   }
 }
@@ -995,8 +790,10 @@ function playAttackingCard(card, playAsAK, player, targetedPlayerId, gameInfo, b
     gameInfo.DiscardPile.push(player.Hand.splice(cardIdx, 1)[0]);
     const targetedPlayer = gameInfo.Players.find(p => p.ID === targetedPlayerId);
     targetedPlayer.HorcruxCount -= 1;
-    const akEvent = playAsAK ? `${player.Character.name} casted ${getCardShortHand(card)} as Avada Kedavra on ${targetedPlayer.Character.name}` 
-    :  `${player.Character.name} casted Avada Kedavra on ${targetedPlayer.Character.name}`;
+    //const akEvent = playAsAK ? `${player.Character.name} casted ${getCardShortHand(card)} as Avada Kedavra on ${targetedPlayer.Character.name}` 
+    //:  `${player.Character.name} casted Avada Kedavra on ${targetedPlayer.Character.name}`;
+    const akEvent = playAsAK ? `Player ${getPlayerName(player)} casted ${getCardShortHand(card)} as Avada Kedavra on Player ${getPlayerName(targetedPlayer)}` 
+    :  `${getPlayerName(player)} casted Avada Kedavra on ${getPlayerName(targetedPlayer)}`;
     //const akEvent = `Player ${player.ID} (${player.name}) casted Avada Kedavra on Player ${targetedPlayerId} (${targetedPlayer.name})`;
     console.log(akEvent);
     if (!targetedPlayer.HorcruxCount) {
@@ -1020,7 +817,8 @@ function playAttackingCard(card, playAsAK, player, targetedPlayerId, gameInfo, b
     const cardIdx = player.Hand.find(c => c.type === card.type);
     gameInfo.DiscardPile.push(player.Hand.splice(cardIdx, 1)[0]);
     const targetedPlayer = gameInfo.Players.find(p => p.ID === targetedPlayerId);
-    const attackEvent = `${player.Character.name} casted ${card.type} on ${targetedPlayer.Character.name}`;
+    //const attackEvent = `${player.Character.name} casted ${card.type} on ${targetedPlayer.Character.name}`;
+    const attackEvent = `${getPlayerName(player)} casted ${card.type} on ${getPlayerName(targetedPlayer)}`;
     //const attackEvent = `Player ${player.ID} (${player.name}) casted ${card.type} on Player ${targetedPlayerId} (${targetedPlayer.name})`;
     console.log(attackEvent);
     gameInfo.Events.push(attackEvent);
@@ -1080,7 +878,7 @@ function guessAndUpdateBotDeductions(gameInfo, botState) {
   }
 }
 
-function endTurn(gameInfo, botState) {
+function endTurn(gameInfo, botState, rid) {
   gameInfo.preDrawnCard = false;
   const currPlayerIdx = gameInfo.Players.findIndex(p => p.ID === gameInfo.currPlayerTurnID);
   let i = (currPlayerIdx + 1) % gameInfo.Players.length;
@@ -1109,7 +907,7 @@ function endTurn(gameInfo, botState) {
       i = (i + 1) % gameInfo.Players.length;
     }
     else if (gameInfo.Players[i].isDisarmed) {
-      console.log(`Skipping turn of ${gameInfo.Players[i].Character.name} since they are disarmed`);
+      console.log(`Skipping turn of ${getPlayerName(gameInfo.Players[i])} since they are disarmed`);
       gameInfo.Players[i].isDisarmed = false;
       i = (i + 1) % gameInfo.Players.length;
     }
@@ -1165,6 +963,15 @@ function endTurn(gameInfo, botState) {
       gameInfo.PeterWins = true;
     }
   }
+  if (!gameInfo.GameEnded) {
+    const nextPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
+    if (nextPlayer.isBot) {
+      playBotTurn(nextPlayer, botState, gameInfo, rid);
+    }
+    else {
+      notifyGameInfo(rid);
+    }
+  }
 }
 
 function accioRandomCard(attacker, targeted, gameInfo) {
@@ -1177,7 +984,8 @@ function accioRandomCard(attacker, targeted, gameInfo) {
   }
   const card = targeted.Hand.splice(idx, 1)[0];
   attacker.Hand.push(card);
-  const accioEvent = `${attacker.Character.name} won the Accio duel and picked a ${card.type} card`;
+  //const accioEvent = `${attacker.Character.name} won the Accio duel and picked a ${card.type} card`;
+  const accioEvent = `${getPlayerName(attacker)} won the Accio duel and picked a ${card.type} card`;
   //const accioEvent = `Player ${attacker.ID} (${attacker.name}) won the Accio duel and picked a random card`;
   console.log(accioEvent);
   gameInfo.Events.push(accioEvent);
@@ -1188,7 +996,8 @@ function accioFaceUpCard(attacker, targeted, gameInfo) {
   if (idx !== -1) {
     const card = targeted.FaceUpCards.splice(idx, 1)[0];
     attacker.Hand.push(card);
-    const accioEvent = `${attacker.Character.name} won the Accio duel and picked a ${card.type} card`;
+    //const accioEvent = `${attacker.Character.name} won the Accio duel and picked a ${card.type} card`;
+    const accioEvent = `${getPlayerName(attacker)} won the Accio duel and picked a ${card.type} card`;
     //const accioEvent = `Player ${attacker.ID} (${attacker.name}) won the Accio duel and picked a ${card.type} card`;
     console.log(accioEvent);
     gameInfo.Events.push(accioEvent);
@@ -1198,12 +1007,11 @@ function accioFaceUpCard(attacker, targeted, gameInfo) {
   }
 }
 
-function notifyAccioChoose(gameInfo) {
-  // TODO: notify human player through socket to choose a random card or a face-up card from opponent
+function notifyAccioChoose(gameInfo) { 
   const currAttacker = gameInfo.Players.find(p => p.ID === gameInfo.currAttackerPlayerTurnID);
   const targetedPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currTargetedPlayerTurnID);
-  if (currAttacker.isBot) {
-    if (targetedPlayer.FaceUpCards.length && targetedPlayer.FaceUpCards.some(c => c.type !== CardTypes.DH)) {
+  if (targetedPlayer.FaceUpCards.length && targetedPlayer.FaceUpCards.some(c => c.type !== CardTypes.DH)) {
+    if (currAttacker.isBot) {
       const chooseFaceUp = Math.floor(Math.random() * 100) < 50;
       if (chooseFaceUp) {
         accioFaceUpCard(currAttacker, targetedPlayer, gameInfo);
@@ -1213,47 +1021,72 @@ function notifyAccioChoose(gameInfo) {
       }
     }
     else {
-      accioRandomCard(currAttacker, targetedPlayer, gameInfo);
+      // TODO: notify human player through socket to choose a random card or a face-up card from opponent
+      const playerState = getPlayerState(currAttacker.globalPlayerID);
+      playerState._socket.emit('AccioChoose');
     }
+  }
+  else {
+    accioRandomCard(currAttacker, targetedPlayer, gameInfo);
   }
 }
 
-function notifyDefense(gameInfo, botState) {
+function castProtegoByTargetedPlayer(gameInfo, botState, rid) {
+  const targetedPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currTargetedPlayerTurnID);
+  const protegoIdx = targetedPlayer.Hand.findIndex(c => c.type === CardTypes.PROTEGO);
+  targetedPlayer.Hand.splice(protegoIdx, 1);
+  const tmp = gameInfo.currAttackerPlayerTurnID;
+  gameInfo.currAttackerPlayerTurnID = gameInfo.currTargetedPlayerTurnID;
+  gameInfo.currTargetedPlayerTurnID = tmp;
+  //const defenseEvent = `${targetedPlayer.Character.name} casted ${CardTypes.PROTEGO}`;
+  const defenseEvent = `${getPlayerName(targetedPlayer)} casted ${CardTypes.PROTEGO}`;
+  //const defenseEvent = `Player ${targetedPlayer.ID} (${targetedPlayer.name}) casted ${CardTypes.PROTEGO}`;
+  console.log(defenseEvent);
+  gameInfo.Events.push(defenseEvent);
+  notifyDefense(gameInfo, botState, rid);
+}
+
+function notifyDefense(gameInfo, botState, rid) {
   // TODO: notify human player through socket
   const targetedPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currTargetedPlayerTurnID);
-  if (targetedPlayer.isBot) {
     const accioIdx = targetedPlayer.Hand.findIndex(c => c.type === CardTypes.PROTEGO);
-    if (accioIdx > -1) {
+  if (accioIdx > -1) {
+    if (targetedPlayer.isBot) {
       targetedPlayer.Hand.splice(accioIdx, 1);
       const tmp = gameInfo.currAttackerPlayerTurnID;
       gameInfo.currAttackerPlayerTurnID = gameInfo.currTargetedPlayerTurnID;
       gameInfo.currTargetedPlayerTurnID = tmp;
-      const defenseEvent = `${targetedPlayer.Character.name} casted ${CardTypes.PROTEGO}`;
+      //const defenseEvent = `${targetedPlayer.Character.name} casted ${CardTypes.PROTEGO}`;
+      const defenseEvent = `${getPlayerName(targetedPlayer)} casted ${CardTypes.PROTEGO}`;
       //const defenseEvent = `Player ${targetedPlayer.ID} (${targetedPlayer.name}) casted ${CardTypes.PROTEGO}`;
       console.log(defenseEvent);
       gameInfo.Events.push(defenseEvent);
-      notifyDefense(gameInfo, botState);
+      notifyDefense(gameInfo, botState, rid);
+    } else {
+      notifyGameInfo(rid);
     }
+  }
     else {
       if (gameInfo.baseAttackCardType === CardTypes.EXPELLIARMUS) {
-        console.log(`${targetedPlayer.Character.name} was disarmed`);
+        //console.log(`${targetedPlayer.Character.name} was disarmed`);
+        console.log(`${getPlayerName(targetedPlayer)} was disarmed`);
         targetedPlayer.isDisarmed = true;
       }
       else {
         notifyAccioChoose(gameInfo);
       }
-      if (!gameInfo.preDrawnCard) {
-        const currPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
-        drawCard(currPlayer, gameInfo);
+      const attackerPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currAttackerPlayerTurnID);
+      if (attackerPlayer.isBot) {
+        if (!gameInfo.preDrawnCard) {
+          const currPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
+          drawCard(currPlayer, gameInfo);
+        }
+        endTurn(gameInfo, botState, rid);
       }
-      endTurn(gameInfo, botState);
     }
-  } else {
-    console.log('Should not reach here in sim mode');
-  }
 }
 
-function playBotTurn(player, botState, gameInfo) {
+function playBotTurn(player, botState, gameInfo, rid) {
   if (player.Hand.length < MAX_HAND_CARDS) {
     drawCard(player, gameInfo);
     gameInfo.preDrawnCard = true;
@@ -1261,7 +1094,7 @@ function playBotTurn(player, botState, gameInfo) {
   if (player.Hand.length > MAX_HAND_CARDS) {
     discardExcessCards(player, gameInfo);
   }
-  console.log(`Turn ${player.Character.name}, Horcrux:${player.HorcruxCount}, Hand: ${player.Hand.map(c => getCardShortHand(c)).join(',')} , FaceUp: ${player.FaceUpCards.map(c => c.type === CardTypes.CB ?
+  console.log(`Turn ${getPlayerName(player)}, Horcrux:${player.HorcruxCount}, Hand: ${player.Hand.map(c => getCardShortHand(c)).join(',')} , FaceUp: ${player.FaceUpCards.map(c => c.type === CardTypes.CB ?
        c.type.charAt(0) + c.number : c.type + c.suite).join(',')}`);
   /**
    * 1. Trade CFC if possible with a 40 \ 60 odd of trading 3 \ 4 CFC
@@ -1395,10 +1228,10 @@ function playBotTurn(player, botState, gameInfo) {
     }
     playAttackingCard(attackingCard, playAsAK, player, targetedPlayerId, gameInfo, botState);
     if ([CardTypes.ACCIO, CardTypes.EXPELLIARMUS].includes(attackingCard.type) && !playAsAK) {
-      notifyDefense(gameInfo, botState);
+      notifyDefense(gameInfo, botState, rid);
     }
     else {
-      endTurn(gameInfo, botState);
+      endTurn(gameInfo, botState, rid);
     }
   }
   else {
@@ -1408,19 +1241,18 @@ function playBotTurn(player, botState, gameInfo) {
         discardExcessCards(player, gameInfo);
       }
     }
-    endTurn(gameInfo, botState);
+    endTurn(gameInfo, botState, rid);
   }
 }
 
-function startNextRound(rid) {
-  const gameInfo = getGameInfo(rid),
-    botState = getBotState(rid),
-    currPlayer = gameInfo.Players.find(p => p.ID === currPlayerTurnID);
-  if (currPlayer.isBot) {
-    playBotTurn(currPlayer, botState, gameInfo);
-  }
-  //notifyGameInfo(rid);
-  //notifyRoomInfo(rid);
+function startNextRound(roomInfo, rid) {
+  const gameInfo = roomInfo.gameInfo,
+      botState = roomInfo.botState,
+      idx = gameInfo.Players.findIndex(p => p.ID === gameInfo.currPlayerTurnID),
+      currPlayer = gameInfo.Players[idx];
+      if (currPlayer.isBot) {
+        playBotTurn(currPlayer, botState, gameInfo, rid);
+      }
 }
 
 function removePlayerFromResults(player, results) {
@@ -1438,25 +1270,16 @@ function removePlayerFromResults(player, results) {
       return results;
 }
 
-function restartRound(rid, playerName, joinedGame) {
-  resetGameInfo(rid);
-  notifyNextClue(rid);
-  notifyGameInfo(rid);
-  notifyRoomInfo(rid);
-  const reason = "Round was restarted since " + playerName + (joinedGame ? " joined" : " disconnected");
-  io.to(roomchannel(rid)).emit("restartRound", reason);
-}
-
 function startGame(rid){
   let roomInfo = getRoomInfo(rid);
-  initGame(rid);
+  initGame(roomInfo);
   notifyGameInfo(rid);
-  startNextRound(rid);
+  startNextRound(roomInfo, rid);
 }
 
 // TODO - temp test code
-// Pending - DH effects, lily's charm effect
-roomInfo = {playerList: []}
+/**
+ roomInfo = {playerList: []}
 function startGameSim() {
   initGame(roomInfo);
 }
@@ -1487,6 +1310,7 @@ results.hallowsObtained = gameStats.map(g => g.HallowsObtained).reduceRight((tot
 results.PlayersAttemptedHallowFromEmptyDeck = gameStats.map(g => g.PlayersAttemptedHallowFromEmptyDeck.length).reduceRight((total, count) => total + count, 0);
 console.log('Results: ' + JSON.stringify(results, null, 2));
 process.exit();
+ */
 
 function isGameEnded(rid) {
   const gameInfo = getGameInfo(rid);
@@ -1507,7 +1331,6 @@ io.on('connection', function (socket) {
   // Client States: Outside -> InRoom <--> Gaming 
   let clientState = registerNewPlayer(socket);
   let roomId = -1;
-  socket.emit("id",clientState.globalPlayerID);
   // Can notify the basic setting of players (or declined until player join room)
   socket.on("join",(rid) =>{
     playerJoinRoom(clientState.globalPlayerID,rid);
@@ -1518,36 +1341,11 @@ io.on('connection', function (socket) {
   socket.on("disconnect",(reason) => {
     try {
     removePlayer((clientState.globalPlayerID));
-    const gameInfo = getGameInfo(clientState.currentRoom);
-    if (getRoomInfo(clientState.currentRoom).playerList.length === 1) {
-      restartGame(clientState.currentRoom);
-    } else {
-      // TODO: remove player from results if gaming state = results or gamingEnded
-      const gameState = getRoomInfo(clientState.currentRoom).playerList.map(pId => getPlayerState(pId)).find(p => p.playerID !== clientState.playerID).state;
-      if (['Results', 'GamingEnded'].includes(gameState)) {
-        removePlayerFromResults(clientState, gameInfo.results);
-      }
-      else if (gameInfo.votes.length !==0) { // Reset round only if voting is in progress
-        restartRound(clientState.currentRoom, clientState.playerName);
-      } else {
-        remove(gameInfo.awaitingResponders, clientState.playerName);
-        notifyGameInfo(clientState.currentRoom);
-      }
-    }
     } catch(err) {
       console.log('Encountered error while disconnecting player: ' + err);
     }
   });
   // InRoom Related
-  socket.on("changeTimeLimit",()=>{
-    if(!sanityCheckR(clientState,roomId)){
-      return;
-    }
-    let roomInfo = getRoomInfo(roomId);
-    roomInfo.TLCur = (roomInfo.TLCur + 1) % viableTimeLimit.length;
-    roomInfo.timelimit = viableTimeLimit[roomInfo.TLCur];
-    notifyRoomInfo(roomId);
-  });
   socket.on("changeName",(newName) => {
     if(!sanityCheckR(clientState,roomId)){
       return;
@@ -1578,54 +1376,84 @@ io.on('connection', function (socket) {
   });
 
   // Game Related
-  socket.on("Next",(result) => {
-    if(!sanityCheckG(clientState,roomId)){
-      return;
+  socket.on("AccioChosen",({chooseRandom}) => {
+    const roomInfo = getRoomInfo(roomId);
+    const gameInfo = getGameInfo(roomId);
+    const currAttacker = gameInfo.Players.find(p => p.ID === gameInfo.currAttackerPlayerTurnID);
+    const targetedPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currTargetedPlayerTurnID);
+    if (chooseRandom) {
+      accioRandomCard(currAttacker, targetedPlayer, gameInfo);
     }
-    let gameInfo = getGameInfo(roomId);
-    if(result=="Correct"){
-      gameInfo.correctNum += 1;
-      notifyNextWord(roomId); 
+    else {
+      accioFaceUpCard(currAttacker, targetedPlayer, gameInfo);
     }
-    else if(result=="Skip"){
-      gameInfo.skipNum += 1
-      notifyNextWord(roomId);
-    }
-  });
-
-  socket.on("Response", response => {
-    let gameInfo = getGameInfo(roomId);
-    gameInfo.responses.push({playerID: clientState.playerID, playerName: clientState.playerName, response: response});
-    remove(gameInfo.awaitingResponders, clientState.playerName);
-    notifyRoomInfo(roomId);
     notifyGameInfo(roomId);
-    if(isAllResponded(roomId)) {
-      notifyVotingOptions(roomId);
+    if (!gameInfo.preDrawnCard) {
+      const currPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
+      drawCard(currPlayer, gameInfo);
+    }
+    endTurn(gameInfo, roomInfo.botState, roomId);
+  });
+
+  socket.on("CastProtego", () => {
+    const roomInfo = getRoomInfo(roomId);
+    const gameInfo = getGameInfo(roomId);
+    castProtegoByTargetedPlayer(gameInfo, roomInfo.botState, roomId);
+  });
+
+  socket.on("DrawCard", () => {
+    const gameInfo = getGameInfo(roomId);
+    const currPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
+    drawCard(currPlayer, gameInfo);
+    gameInfo.preDrawnCard = true;
+  });
+
+  socket.on("DiscardCard", (card) => {
+    const gameInfo = getGameInfo(roomId);
+    const roomInfo = getRoomInfo(roomId);
+    const currPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
+    const cardIdx = currPlayer.Hand.findIndex(c => c.type === card.type && c.suite === card.suite && c.number === card.number);
+    if (cardIdx > -1) {
+      discardCard(cardIdx, currPlayer, gameInfo);
+      if (currPlayer.Hand <= MAX_HAND_CARDS) {
+        endTurn(gameInfo, roomInfo.botState, roomId)
+      }
     }
   });
 
-  socket.on("Vote", vote => {
-    let gameInfo = getGameInfo(roomId);
-    gameInfo.votes.push({playerID: clientState.playerID, playerName: clientState.playerName, vote: vote});
-    remove(gameInfo.awaitingVoters, clientState.playerName);
-    notifyRoomInfo(roomId);
-    notifyGameInfo(roomId);
-    if(isAllVoted(roomId)) {
-      evaluateRound(roomId);
-    }
-    notifyRoomInfo(roomId);
-    if(isGameEnded(roomId)) {
-      notifyGameEnd(roomId);
+  socket.on("ActivateCB", () => {
+    const gameInfo = getGameInfo(roomId);
+    const currPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
+    checkAndActivateCB(currPlayer, gameInfo);
+    notifyGameInfo(rid);
+  });
+
+  socket.on("EndTurn", () => {
+    const roomInfo = getRoomInfo(roomId);
+    const gameInfo = getGameInfo(roomId);
+    endTurn(gameInfo, roomInfo.botState, roomId);
+  });
+
+  socket.on("GetHallow", () => {
+    const gameInfo = getGameInfo(roomId);
+    const currPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
+    getHallowCard(currPlayer, gameInfo);
+  });
+
+  socket.on("PlayAttackingCard", ({card, playAsAK, targetedPlayerId}) => {
+    const roomInfo = getRoomInfo(roomId);
+    const gameInfo = getGameInfo(roomId);
+    const currPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
+    playAttackingCard(card, playAsAK, currPlayer, targetedPlayerId, gameInfo, roomInfo.botState);
+    if (card.type === CardTypes.AVADAKEDAVRA || playAsAK) {
+      if (!gameInfo.preDrawnCard) {
+        drawCard(currPlayer, gameInfo);
+        gameInfo.preDrawnCard = true;
+        notifyGameInfo(roomId);
+      }
     }
   });
 
-  socket.on("NextRound",() => {
-    clientState.isReady4NextRound = true;
-    notifyRoomInfo(roomId);
-    if(isAllReady4NextRound(roomId)) {
-      startNextRound(roomId);
-    }
-  });
   socket.on("Restart",() => {
     restartGame(roomId);
   });

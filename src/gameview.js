@@ -3,40 +3,17 @@
 const e = React.createElement;
 import _ from 'lodash';
 import pyschLogo from './images/psych.jpg'
-import adultsOnlyLogo from './images/adults-only.jpg'
-import animalsLogo from './images/animals.jpg'
-import darkStormyLogo from './images/dark-stormy.jpg'
-import factLogo from './images/fact.jpg'
-import itsTheLawLogo from './images/its-the-law.jpg'
-import movieBluffLogo from './images/movie-bluff.jpg'
-import nameThatShowLogo from './images/name-that-show.jpg'
-import poetryLogo from './images/poetry.jpg'
-import proverbsLogo from './images/proverbs.jpg'
-import sayMyNameLogo from './images/say-my-name.jpg'
-import thePlotThickensLogo from './images/the-plot-thickens.jpg'
-import wordUpSwitcherooLogo from './images/word-up-switcheroo.jpg'
-import wordUpLogo from './images/word-up.jpg'
 
-const categoryImages = {
-    "adults-only": adultsOnlyLogo,
-    "animals": animalsLogo,
-    "dark-stormy": darkStormyLogo,
-    "fact": factLogo,
-    "its-the-law": itsTheLawLogo,
-    "movie-bluff": movieBluffLogo,
-    "name-that-show": nameThatShowLogo,
-    "poetry": poetryLogo,
-    "proverbs": proverbsLogo,
-    "say-my-name": sayMyNameLogo,
-    "the-plot-thickens": thePlotThickensLogo,
-    "word-up-switcheroo": wordUpSwitcherooLogo,
-    "word-up": wordUpLogo
-},
-categories = Object.keys(categoryImages),
-categoryDismissed = _.reduce(categories, (acc, category) => {
-    acc[category + 'Dismissed'] = false;
-    return acc;
-}, {});
+const CardTypes = {
+    HORCRUX: 'HORCRUX',
+    AVADAKEDAVRA: 'AVADAKEDAVRA',
+    EXPELLIARMUS: 'EXPELLIARMUS',
+    PROTEGO: 'PROTEGO',
+    CFC: 'CHOCOLATE-FROG-CARD',
+    DH: 'DEATHLY-HALLOW',
+    CB: 'CRYSTAL-BALL',
+    ACCIO: 'ACCIO'
+  };
 
 class ErrorBoundary extends React.Component {
     constructor(props) {
@@ -77,33 +54,19 @@ class ErrorBoundary extends React.Component {
 class Client extends React.Component{
     constructor(props) {
         super(props);
-        this.state = _.assign({
+        this.state = {
             playerId: -1,
+            players: [],
             myInfo: {},
             state: "Outside",
-            timelimit: 180,
-            playersInfo: [],
             // Only available in Gaming state
-            word: "",
-            clue: "",
-            category: "",
-            currResponse: "",
-            responseSubmitted: false,
-            isVotingPhase: false,
-            voted: false,
-            votingOptions: [],
-            currVote: null,
-            results: [],
-            isReady4NextRound: false,
-            numberOfRounds: -1,
-            currRound: -1,
-            awaitingResponders: [],
-            awaitingVoters: [],
-            selfVoted: false,
-            time: -1,
-            correct: 0,
-            skip: 0
-        }, categoryDismissed);
+            gameInfo: {},
+            selectedCard: false,
+            selectedCardIdx: -1,
+            targetedPlayerId: -1,
+            AccioChoose: false,
+            passedTurn: false
+        };
         this.io = io('');
     }
     componentDidMount() {
@@ -118,38 +81,14 @@ class Client extends React.Component{
         });
         this.io.on("roomInfo",(info) => {
             this.setState((state, props) => {
-                state.timelimit = info.timelimit;
-                state.playersInfo = info.players;
-                for(var i=0;i<info.players.length;i++){
-                    var player = info.players[i];
-                    if(player.playerID === state.playerId){
-                        state.myInfo=player;
-                        state.state=player.state;
-                    }
-                }
+                state.players = info.players;
                 return state;
             });
         });
         
-        this.io.on("wordToGuess",(word) =>{
+        this.io.on("AccioChoose",() =>{
             this.setState((state, props) => {
-                state.word = word;
-                return state;
-            });
-        });
-        
-        this.io.on("clueInfo",(clueInfo) =>{
-            this.setState((state, props) => {
-                state.clue = clueInfo.clue;
-                state.category = clueInfo.category;
-                state.currResponse = "";
-                state.responseSubmitted = false;
-                state.isReady4NextRound = false;
-                state.currVote = null;
-                state.results = [];
-                state.voted = false;
-                state.isVotingPhase = false;
-                state.votingOptions = [];
+                state.AccioChoose = true;
                 return state;
             });
         });
@@ -162,26 +101,10 @@ class Client extends React.Component{
         });
         this.io.on("gameInfo",(info) => {
             this.setState((state, props) => {
-                state.winnerNames = info.winnerNames;
-                state.numberOfRounds = info.numberOfRounds;
-                state.currRound = info.currRound;
-                state.awaitingResponders = info.awaitingResponders;
-                state.awaitingVoters = info.awaitingVoters;
-                return state;
-            });
-        });
-        this.io.on("votingOptions",(votingOptions) => {
-            this.setState((state, props) => {
-                state.votingOptions = votingOptions;
-                state.isVotingPhase = true;
-                return state;
-            });
-        });
-        this.io.on("Results",(results) => {
-            this.setState((state, props) => {
-                state.results = results;
-                state.state = "Results";
-                state.isVotingPhase = false;
+                if (state.state !== 'Gaming') {
+                    state.state = 'Gaming'
+                }
+                state.gameInfo = info;
                 return state;
             });
         });
@@ -193,13 +116,6 @@ class Client extends React.Component{
         });
         this.io.on("restartRound",(restartInfo)=> {
             window.alert(restartInfo);
-        })
-        this.io.on("InProgressGameInfo",(info) => {
-            this.setState((state, props) => {
-                state.numberOfRounds = info.numberOfRounds;
-                state.currRound = info.currRound;
-                return state;
-            });
         });
     }
     componentWillUnmount() {
@@ -264,33 +180,21 @@ function RoomView(props){
         <div>
             <RoomOperateArea name={props.GameStatus.myInfo.playerName} timelimit={props.GameStatus.timelimit}
                          isMaster={props.GameStatus.myInfo.isRoomMaster} isReady={props.GameStatus.myInfo.isReady4Gaming} io = {props.io}/>
-            <PlayersArea players={props.GameStatus.playersInfo}/>
+            <PlayersArea players={props.GameStatus.players}/>
             <div className="container" align="center">
                 <div className="Button" onClick={
                     (e) => {
-                        if (props.GameStatus.myInfo.isRoomMaster) {
-                            props.io.emit("Start", "");
-                        }
-                        else {
-                            if (props.GameStatus.myInfo.isReady4Gaming) {
-                                props.io.emit("Unready", "");
-                            }
-                            else {
-                                props.io.emit("Ready", "");
-                            }
-                        }
+                        props.io.emit("Start", "");
                     }
                 }>
-                    {
-                        (props.GameStatus.myInfo.isRoomMaster ? "Start" :
-                            (props.GameStatus.myInfo.isReady4Gaming ? "Cancel" : "Ready"))
-                    }</div>
+                    Start</div>
             </div>
         </div>
     );
 }
 
 function PlayersArea(props){
+    console.log('players: ' + JSON.stringify(props.players, null, 2));
     const playersItems = _.map(props.players, (p,i) => 
         {
             return (
@@ -360,76 +264,17 @@ function ConfigurationArea(props){
 }
 
 function GameView(props){
-    const categoryDismissKey = props.GameStatus.category + 'Dismissed',
-    categoryDismissed = props.GameStatus[categoryDismissKey],
-    showModal = props.GameStatus.state === 'Gaming' && !categoryDismissed,
-    modalClassName = showModal ? 'modal-show' : 'modal',
-    display = showModal ? 'block' : 'none';
     return (
         <div className="container-fluid">
-            <div className={modalClassName} tabIndex="-1" role="dialog">
-                <div className="modal-dialog" role="document">
-                    <div className="modal-content">
-                        <div className="modal-body">
-                            <button 
-                                type="button" 
-                                className="close" 
-                                aria-label="Close" 
-                                style={{display: display}}
-                                onClick={() => {props.onGameStatusChange(categoryDismissKey, true)}}>
-                                <span aria-hidden="true">&times;</span>
-                            </button>
-                            <div>
-                                <img className={"categoryImage container"} src={categoryImages[props.GameStatus.category]} alt={props.GameStatus.category} />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {["Gaming", "Results"].includes(props.GameStatus.state) 
-                && <ClueArea 
-                        clue={props.GameStatus.clue} 
-                        category={props.GameStatus.category} 
-                        state={props.GameStatus.state}
-                        currRound={props.GameStatus.currRound}
-                        numberOfRounds={props.GameStatus.numberOfRounds}
-                    />}
             {props.GameStatus.state === "GamingEnded" && <WinnerArea winnerNames={props.GameStatus.winnerNames}/>}
-            {props.GameStatus.state === "Gaming" &&
-                <GameOperationArea io={props.io}
-                 GameStatus={props.GameStatus} 
-                 onGameStatusChange={props.onGameStatusChange}
-                 onGameStatusMultiChange={props.onGameStatusMultiChange}/>
-            }
             {
-                ["Results", "GamingEnded"].includes(props.GameStatus.state) &&
+                ["Gaming", "GamingEnded"].includes(props.GameStatus.state) &&
                 <ErrorBoundary io={props.io} GameStatus={props.GameStatus} onGameStatusChange={props.onGameStatusChange} fallBackUI={ResultOperationArea}>
                     <ResultArea io={props.io} GameStatus={props.GameStatus} onGameStatusChange={props.onGameStatusChange}/>
                 </ErrorBoundary>
             }
         </div>
     );
-}
-
-
-function ClueArea(props){
-    return (
-    <div className="container-fluid">
-        <div className="header container">
-            <div className="row">
-                <div className="col">
-                    {"ROUND " + props.currRound + "/" + props.numberOfRounds}
-                </div>
-                <div className="col">{"CATEGORY: " + props.category}</div>
-            </div>
-        </div>
-        {/* <div>
-        <img className={"categoryImage container"} src={categoryImages[props.category]} alt={props.category} />
-        </div> */}
-        <div className={"clue"}>
-            {props.clue}
-        </div>
-    </div>);
 }
 
 function WinnerArea(props){
@@ -444,93 +289,50 @@ function WinnerArea(props){
     );
 }
 
-function GameOperationArea(props){
-    const selfAnswer = props.GameStatus.votingOptions.find(v => v.playerID === props.GameStatus.playerId);
-    var errorMsg = '';
-    return (
-        <div className="GameArea container">
-            {!props.GameStatus.responseSubmitted && 
-            <form onSubmit={e => {
-                props.io.emit("Response", props.GameStatus.currResponse);
-                props.onGameStatusChange('responseSubmitted', true);
-            }}>
-                <p>Your response:</p>
-                <input
-                    type='text'
-                    onChange={(e) => {
-                        props.onGameStatusChange('currResponse', e.target.value);
-                    }}
-                />
-                <button className="Button" type="submit" disabled={!props.GameStatus.currResponse}>Submit</button>
-            </form>}
-            {
-                !props.GameStatus.isVotingPhase && props.GameStatus.responseSubmitted && <div>Submitted Response. Waiting for {props.GameStatus.awaitingResponders.join(" , ")}</div>
-            }
-            {
-                props.GameStatus.isVotingPhase &&
-                !props.GameStatus.voted &&
-                <div className="container">
-                        <div className="header container">
-                            ANSWERS
-                        </div>
-                        <ul className="OptionList">
-                        {_.reduce(props.GameStatus.votingOptions, (acc, v) => {
-                            acc.push((
-                                <div className="OptionWrapper">
-                                    <li className="Option" onClick={() => {
-                                    if (v.option === selfAnswer.option) {
-                                        props.onGameStatusChange('selfVoted', true);
-                                    }
-                                    else {
-                                        props.io.emit("Vote", v.option);
-                                        props.onGameStatusMultiChange({selfVoted: false, voted: true});
-                                    }
-                                    
-                                    }}>
-                                    {v.option}
-                                </li>
-                                {props.GameStatus.selfVoted && v.option === selfAnswer.option &&<span className="errorMsg">Cannot vote self answer!</span>}
-                                </div>
-                            ));
-                            return acc;
-                        }, [])}
-                        </ul>
-                </div>
-            }
-            {
-                props.GameStatus.isVotingPhase && props.GameStatus.voted && <div>Voted. Waiting for {props.GameStatus.awaitingVoters.join(" , ")}</div>
-            }
-        </div>);
+function getPlayerName(p, selfPlayerId) {
+    var name = p.Character.revealed ? p.Character.name : '';
+    if (p.ID === selfPlayerId) {
+        name = p.Character.name + ' (You)'
+    }
+    else {
+        if (p.isBot) {
+            name = name ? name + ' (bot)' : `Player ${p.ID}` + ' (bot)'
+        }
+        else {
+            name = name ? name + ' (human)' : `Player ${p.ID}` + ' (human)'
+        }
+    }
+    return name;
 }
 
-function getSpookedPlayerNames(playersInfo, response, spooks)  {
-    const spookRes = _.find(spooks, s => s.response === response),
-    spookedPlayerIds = spookRes ? spookRes.SPOOKED_PLAYER_IDS : null,
-    spookedPlayerNames = spookedPlayerIds.length ? _.map(spookedPlayerIds, id => {
-        const player = _.find(playersInfo, p => p.playerID === id);
-        return player ? player.playerName : null;
-    }) : [];
-    return spookedPlayerNames;
-}
-
-function getPlayersOrderedByScore(pInfo) {
-    const playersInfo = JSON.parse(JSON.stringify(pInfo));
-    return _.orderBy(playersInfo, ['score'], ['desc']);
-}
-
-function getResultsTable(players) {
+function getPlayersTable(props) {
+    const players = props.GameStatus.gameInfo.Players,
+    selfPlayerId = props.GameStatus.playerId;
     return (
         <table className="table Results">
             <tr>
-                <th>RANK</th><th>NAME</th><th>POINTS</th>
+                <th>NO.</th><th>NAME</th><th>HORCRUXES</th><th>HAND CARDS</th><th>FACE UP CARDS</th>
             </tr>
             {_.map(players, (p, idx) => {
-                const rank = idx + 1;
+                const number = idx + 1;
+                const name = getPlayerName(p, selfPlayerId);
                 return (
                     <tr>
-                        <td>{rank}</td>
-                        <td>{p.playerName}</td>
-                        <td>{p.score}</td>
+                        <td>{number}</td>
+                        <td>
+                            <div className="OptionWrapper">
+                                <div className="Option" onClick={() => {
+                                    if (props.GameStatus.selectedCard) {
+                                        props.onGameStatusChange('targetedPlayerId', p.ID);
+                                    }
+                                }}>
+                                    {name}
+                                </div>
+                            </div>
+                        </td>
+                        <td>{p.HorcruxCount}</td>
+                        <td>{'x ' + p.Hand.length}</td>
+                        <td>{p.FaceUpCards.map(c => getCardName(c)).join(',')}</td>
                     </tr>
                 );
             })}
@@ -555,52 +357,196 @@ function ResultOperationArea(props) {
     );
 }
 
+function getCardName(card) {
+    switch(card.type) {
+        case CardTypes.EXPELLIARMUS:
+        case CardTypes.ACCIO:
+        case CardTypes.AVADAKEDAVRA:
+        case CardTypes.PROTEGO:
+            return card.type
+        case CardTypes.CB:
+            return card.type + ' ' + card.number
+        case CardTypes.CFC:
+            return card.type + ' ' + card.suite + ' ' + card.number
+        case CardTypes.DH:
+            return card.suite
+    }
+}
+
+function getCards(props) {
+    const player = props.GameStatus.gameInfo.Players.find(p => p.ID === props.GameStatus.playerId),
+    cards = player.Hand;
+    const currPlayerTurnID = props.GameStatus.gameInfo.currPlayerTurnID,
+    isCurrentTurn = currPlayerTurnID === player.ID,
+    attackingCardTypes = [CardTypes.EXPELLIARMUS, CardTypes.ACCIO, CardTypes.AVADAKEDAVRA];
+    return (
+        <div className="row">
+            {cards.map((c, idx) => {
+                const className = idx === 0 ? "col-md-5" : "col-md-5 col-md-offset-2";
+                return (
+                    <div className={className}>
+                    <div className="OptionWrapper">
+                        <li className="Option" onClick={() => {
+                            if (isCurrentTurn && attackingCardTypes.includes(c.type)) {
+                                props.onGameStatusChange('selectedCard', c);
+                            }
+                        }}>
+                            {getCardName(c)}
+                        </li>
+                    </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+function getNumbersSummingToTarget(targetSum, reqNumbers, sortedArray, fromIdx, result) {
+    if (fromIdx === sortedArray.length) {
+        return [false];
+    }
+    if (reqNumbers === 1) {
+      if (sortedArray.slice(fromIdx, sortedArray.length).includes(targetSum)) {
+        return [true, result.concat(targetSum)];
+      } else {
+        return [false];
+      }
+    } 
+    const results = [];
+    for (let i = fromIdx; i < sortedArray.length; i++) {
+      results.push(getNumbersSummingToTarget(targetSum - sortedArray[i], reqNumbers - 1, sortedArray, i + 1, result.concat(sortedArray[i])));
+    }
+    const hasSum = results.find(r => r[0]);
+    if (hasSum) {
+      return hasSum;
+    }
+    return [false];
+  }
+
+function hasCombination(HandCards) {
+    const cfcCards = HandCards.filter(c => c.type === CardTypes.CFC),
+    sortedCfcNumbers = cfcCards.map(c => c.number).sort((a, b) => a - b);
+    const combination = getNumbersSummingToTarget(7, 3, sortedCfcNumbers, 0, []);
+    return combination[0];
+  }
+
+  function deckHasHallowCards(gameInfo) {
+    return gameInfo.DeathlyHallowDeck.length > 0;
+  }
+
+function getActions(props) {
+    const player = props.GameStatus.gameInfo.Players.find(p => p.ID === props.GameStatus.playerId),
+    currPlayerTurnID = props.GameStatus.gameInfo.currPlayerTurnID,
+    isCurrentTurn = currPlayerTurnID === player.ID,
+    selectedCard = props.GameStatus.selectedCard,
+    isReadyToCast = selectedCard && props.GameStatus.targetedPlayerId !== -1,
+    canPlayAsAK = player.FaceUpCards.some(c => c.type === 'DEATHLY-HALLOW' && c.suite === 'ELDER-WAND'),
+    canActivateCB = player.Hand.some(c => c.type === CardTypes.CB),
+    canCastProtego = props.GameStatus.gameInfo.currTargetedPlayerTurnID === player.ID &&
+                    player.Hand.some(c => c.type === CardTypes.PROTEGO),
+    canPreDrawCard = isCurrentTurn && !props.GameStatus.gameInfo.preDrawnCard && player.Hand.length < 5,
+    drawCardPostPass = props.GameStatus.passedTurn && !props.GameStatus.gameInfo.preDrawnCard,
+    shouldDiscardExcessCards = isCurrentTurn && player.Hand.length > 5;
+    // TODO: add hallow effect buttons , accio choose
+    return (
+        <div className="container" align="center">
+            {isCurrentTurn && isReadyToCast && (
+                <div className="col" id="attack">
+                    <button className="Action" onClick={(e) => {
+                        props.io.emit("PlayAttackingCard", { card: selectedCard, playAsAK: false, targetedPlayerId: props.GameStatus.targetedPlayerId, passedTurn: false });
+                        props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1});
+                    }}>{'CAST ' + props.GameStatus.selectedCard.type}</button>
+                </div>
+            )}
+            {isCurrentTurn && !shouldDiscardExcessCards && (
+                <div className="col" id="endTurn">
+                    <button className="Action" onClick={(e) => {
+                        props.io.emit("EndTurn");
+                        props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1, passedTurn: false});
+                    }}>END TURN</button>
+                </div>
+            )}
+            {isCurrentTurn && canActivateCB && (
+                <div className="col" id="activateCB">
+                    <button className="Action" onClick={(e) => {
+                        props.io.emit("ActivateCB");
+                        props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1, passedTurn: false});
+                    }}>{'ACTIVATE CRYSTAL BALL'}</button>
+                </div>
+            )}
+            {canCastProtego && (
+                <div className="col" id="castProtego">
+                    <button className="Action" onClick={(e) => {
+                        props.io.emit("CastProtego");
+                        props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1, passedTurn: false});
+                    }}>{'CAST PROTEGO'}</button>
+                </div>
+            )}
+            {(canPreDrawCard || drawCardPostPass) && (
+                <div className="col" id="predrawCard">
+                    <button className="Action" onClick={(e) => {
+                        props.io.emit("DrawCard");
+                        props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1, passedTurn: false});
+                    }}>{'DRAW CARD'}</button>
+                </div>
+            )}
+            {isCurrentTurn && !props.GameStatus.passedTurn && (
+                <div className="col" id="passTurn">
+                    <button className="Action" onClick={(e) => {
+                        props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1, passedTurn: true});
+                    }}>{'PASS TURN'}</button>
+                </div>
+            )}
+            {shouldDiscardExcessCards && selectedCard && (
+                <div className="col" id="discardCard">
+                    <button className="Action" onClick={(e) => {
+                        props.io.emit("DiscardCard", selectedCard);
+                        props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1, passedTurn: false});
+                    }}>{'DISCARD CARD'}</button>
+                </div>
+            )}
+            {isCurrentTurn && hasCombination(player.Hand) && deckHasHallowCards(props.GameStatus.gameInfo) &&(
+                <div className="col" id="getHallow">
+                    <button className="Action" onClick={(e) => {
+                        props.io.emit("GetHallow");
+                        props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1, passedTurn: false});
+                    }}>{'GET HALLOW'}</button>
+                </div>
+            )}
+            {props.GameStatus.AccioChoose && (
+                <div className="col" id="accioRandom">
+                    <button className="Action" onClick={(e) => {
+                        props.io.emit("AccioChosen", {chooseRandom: true});
+                        props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1, AccioChoose: false, passedTurn: false});
+                    }}>{'ACCIO RANDOM HAND CARD'}</button>
+                </div>
+            )}
+            {props.GameStatus.AccioChoose && (
+                <div className="col" id="accioFaceUp">
+                    <button className="Action" onClick={(e) => {
+                        props.io.emit("AccioChosen", {chooseRandom: false});
+                        props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1, AccioChoose: false, passedTurn: false});
+                    }}>{'ACCIO CRYSTAL BALL CARD'}</button>
+                </div>
+            )}
+        </div>
+    );
+}
+
 function ResultArea(props) {
-    const results = props.GameStatus.results,
-    playersInfo = props.GameStatus.playersInfo,
-    answeredCorrectly = results.correctAnswererPlayerIds.includes(props.GameStatus.playerId),
-    spookedPlayers = _.find(results.spooks, s => s.SPOOKER_PLAYER_ID === props.GameStatus.playerId),
-    spookedPlayerNames = spookedPlayers ? spookedPlayers.SPOOKED_PLAYER_NAMES : [],
-    spookedMsg = 'You spooked ' + (spookedPlayerNames.length ? spookedPlayerNames : 'None'),
-    spookerPlayer = !answeredCorrectly ? _.find(results.spooks, s => s.SPOOKED_PLAYER_IDS.includes(props.GameStatus.playerId)) : null,
-    spookedByPlayerName = spookerPlayer ? spookerPlayer.SPOOKER_PLAYER_NAME: null,
-    spookedByMsg = spookedByPlayerName ? spookedByPlayerName + ' spooked you' : null;
+    const gameInfo = props.GameStatus.gameInfo,
+    player = gameInfo.Players.find(p => p.ID === props.GameStatus.playerId),
+    currPlayerTurnID = gameInfo.currPlayerTurnID,
+    isCurrentTurn = currPlayerTurnID === player.ID,
+    currTurnPlayer = gameInfo.Players.find(p => p.ID === currPlayerTurnID),
+    turnMessage = 'Current Turn: ' + (isCurrentTurn ? 'Your' : getPlayerName(currTurnPlayer));
     
     return (
         <div className="ResultsWrapper container">
-            {answeredCorrectly && <div className="header pad-down">You answered correctly</div>}
-            {!answeredCorrectly && <div className="header pad-down">{spookedByMsg}</div>}
-            {<div className="header pad-down">{spookedMsg}</div>}
-            <div className="header">HOW MANY TIMES WAS EACH ANSWER PICKED ?</div>
-            <ul className="OptionList">
-                {[
-                    (
-                        <div className="OptionWrapper">
-                            <div className="row">
-                                <li className="Option Correct col">
-                                    {'(correct answer) ' + results.correctAnswer}
-                                </li>
-                                <div className="voteCount col">{results.correctAnswererPlayerIds.length}</div>
-                            </div>
-                        </div>
-                    )
-                ].concat(_.reduce(results.spooks, (acc, option) => {
-                    acc.push((
-                        <div className="OptionWrapper">
-                            <div className="row">
-                                <li className="Option col">
-                                    {option.response}
-                                </li>
-                                <div className="voteCount col">{option.SPOOKED_PLAYER_IDS.length}</div>
-                            </div>
-                        </div>
-                    ));
-                    return acc;
-                }, []))}
-            </ul>
-            <div className="header">RESULTS</div>
-            {getResultsTable(getPlayersOrderedByScore(playersInfo))}
-            <ResultOperationArea GameStatus={props.GameStatus} onGameStatusChange={props.onGameStatusChange} io={props.io}></ResultOperationArea>
+            <div className="header">{turnMessage}</div>
+            {getPlayersTable(props)}
+            {getCards(props)}
+            {getActions(props)}
         </div>
     );
 }
