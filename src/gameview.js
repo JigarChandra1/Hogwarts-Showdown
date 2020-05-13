@@ -67,7 +67,8 @@ class Client extends React.Component{
             selectedCardIdx: -1,
             targetedPlayerId: -1,
             AccioChoose: false,
-            passedTurn: false
+            passedTurn: false,
+            lastSeenEventIdx: 0
         };
         this.io = io('');
     }
@@ -358,7 +359,7 @@ function getPlayersTable(props) {
 }
 
 function getEvents(props) {
-    const events = props.GameStatus.gameInfo.Events.length >= 10 ? props.GameStatus.gameInfo.Events.slice(props.GameStatus.gameInfo.Events.length - 10) : props.GameStatus.gameInfo.Events,
+    const events = props.GameStatus.gameInfo.Events.length ? props.GameStatus.gameInfo.Events.slice(props.GameStatus.lastSeenEventIdx) : props.GameStatus.gameInfo.Events,
     selfPlayerName = 'Player ' + props.GameStatus.playerId,
     transformedEvents = events.map(e => e.replace(selfPlayerName, 'You'));
     return (
@@ -495,7 +496,8 @@ function getActions(props) {
                     player.Hand.some(c => c.type === CardTypes.PROTEGO),
     canPreDrawCard = isCurrentTurn && !props.GameStatus.gameInfo.preDrawnCard && player.Hand.length < 5,
     drawCardPostPass = props.GameStatus.passedTurn && !props.GameStatus.gameInfo.preDrawnCard,
-    shouldDiscardExcessCards = isCurrentTurn && player.Hand.length > 5;
+    shouldDiscardExcessCards = isCurrentTurn && player.Hand.length > 5,
+    lastSeenEventIdx = props.GameStatus.gameInfo.Events.length ? props.GameStatus.gameInfo.Events.length - 1: 0;
     // TODO: add hallow effect buttons , accio choose
     return (
         <div className="container" align="center">
@@ -512,7 +514,7 @@ function getActions(props) {
                 <div className="col" id="endTurn">
                     <button className="Action" onClick={(e) => {
                         props.io.emit("EndTurn");
-                        props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1, passedTurn: false});
+                        props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1, passedTurn: false, lastSeenEventIdx: lastSeenEventIdx});
                     }}>END TURN</button>
                 </div>
             )}

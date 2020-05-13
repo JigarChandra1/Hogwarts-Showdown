@@ -1423,9 +1423,6 @@ io.on('connection', function (socket) {
     if (cardIdx > -1) {
       discardCard(cardIdx, currPlayer, gameInfo);
       notifyGameInfo(roomId);
-      if (currPlayer.Hand.length <= MAX_HAND_CARDS) {
-        endTurn(gameInfo, roomInfo.botState, roomId)
-      }
     }
   });
 
