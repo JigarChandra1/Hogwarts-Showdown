@@ -974,6 +974,9 @@ function endTurn(gameInfo, botState, rid) {
       notifyGameInfo(rid);
     }
   }
+  else {
+    notifyGameInfo(rid);
+  }
 }
 
 function accioRandomCard(attacker, targeted, gameInfo) {
