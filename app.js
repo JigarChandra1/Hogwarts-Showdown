@@ -49,7 +49,7 @@ const CRYSTAL_BALLS = [[2, 10], [3, 7]].reduce((acc, arr) => {
   return acc;
 }, []);
 
-const CFC = [[3, 10]].reduce((acc, arr) => {
+const CFC = [[3, 8]].reduce((acc, arr) => {
   for (let i = 0; i < arr[0]; i++) {
     for (let j = 0; j < arr[1]; j++) {
       acc.push(new Card(CardTypes.CFC, CFC_SUITES[i], j));
@@ -1284,7 +1284,7 @@ function startGame(rid){
 }
 
 // TODO - temp test code
-
+/**
  roomInfo = {playerList: []}
 function startGameSim() {
   initGame(roomInfo);
@@ -1316,7 +1316,7 @@ results.hallowsObtained = gameStats.map(g => g.HallowsObtained).reduceRight((tot
 results.PlayersAttemptedHallowFromEmptyDeck = gameStats.map(g => g.PlayersAttemptedHallowFromEmptyDeck.length).reduceRight((total, count) => total + count, 0);
 console.log('Results: ' + JSON.stringify(results, null, 2));
 process.exit();
-
+*/
 
 function isGameEnded(rid) {
   const gameInfo = getGameInfo(rid);
