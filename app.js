@@ -668,7 +668,7 @@ function getHallowCard(player, gameInfo) {
   const indexes = [];
   for (let i = 0; i < cfcNumbers.length; i++) {
     const number = cfcNumbers[i];
-    const idx = player.Hand.find((c, cIdx) => c.type === CardTypes.CFC && c.number === number && !indexes.includes(cIdx));
+    const idx = player.Hand.findIndex((c, cIdx) => c.type === CardTypes.CFC && c.number === number && !indexes.includes(cIdx));
     indexes.push(idx);
   }
   const otherCards = Array.from(player.Hand.filter((c, cIdx) => !indexes.includes(cIdx)));
@@ -1284,7 +1284,7 @@ function startGame(rid){
 }
 
 // TODO - temp test code
-/**
+
  roomInfo = {playerList: []}
 function startGameSim() {
   initGame(roomInfo);
@@ -1316,7 +1316,7 @@ results.hallowsObtained = gameStats.map(g => g.HallowsObtained).reduceRight((tot
 results.PlayersAttemptedHallowFromEmptyDeck = gameStats.map(g => g.PlayersAttemptedHallowFromEmptyDeck.length).reduceRight((total, count) => total + count, 0);
 console.log('Results: ' + JSON.stringify(results, null, 2));
 process.exit();
- */
+
 
 function isGameEnded(rid) {
   const gameInfo = getGameInfo(rid);
