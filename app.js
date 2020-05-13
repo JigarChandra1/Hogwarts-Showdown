@@ -515,8 +515,10 @@ function getCardShortHand(card) {
 
 function discardCard(cardIdx, player, gameInfo) {
   const card = player.Hand.splice(cardIdx, 1)[0];
-  console.log(`${player.Character.name} discarded ${getCardShortHand(card)}`);
+  const discardEvent = `${getPlayerName(player)} discarded ${getCardShortHand(card)}`;
+  console.log(discardEvent);
   gameInfo.DiscardPile.push(card);
+  gameInfo.Events.push(discardEvent);
 }
 
 function hasConsecutiveCombination(cfcCards, count) {
@@ -671,14 +673,14 @@ function getHallowCard(player, gameInfo) {
   }
   const otherCards = Array.from(player.Hand.filter((c, cIdx) => !indexes.includes(cIdx)));
   const tradeableCards = Array.from(player.Hand.filter((c, cIdx) => indexes.includes(cIdx)));
-  const event = `Player ${player.ID} (${player.name}) discarded: ${JSON.stringify(tradeableCards, null, 2)}`;
+  const event = `${getPlayerName(player)} discarded: ${tradeableCards.map(c => getCardShortHand(c)).join(',')}`;
     gameInfo.DiscardPile.concat(tradeableCards);
     player.Hand = otherCards;
     console.log(event);
     gameInfo.Events.push(event);
     const hallowCard = gameInfo.DeathlyHallowDeck.shift();
     player.FaceUpCards.push(hallowCard);
-    const hallowEvent = `Player ${player.ID} (${player.name}) obtained Deathly Hallow Card: ${JSON.stringify(hallowCard, null, 2)}`;
+    const hallowEvent = `${getPlayerName(player)} obtained: ${hallowCard.suite}`;
     console.log(hallowEvent);
     gameInfo.HallowsObtained += 1;
     gameInfo.Events.push(hallowEvent);
@@ -695,7 +697,7 @@ function checkAndActivateCB(player, gameInfo) {
       const cbCardIdx = player.Hand.findIndex(c => c.type === CardTypes.CB);
       player.Hand.splice(cbCardIdx, 1);
       player.FaceUpCards.push(cbCard);
-      const cbEvent = `${player.Character.name} activated Crystal Ball Card Level ${cbCard.number}`;
+      const cbEvent = `${getPlayerName(player)} activated Crystal Ball Card Level ${cbCard.number}`;
       //const cbEvent = `Player ${player.ID} (${player.name}) activated Crystal Ball Card Level ${cbCard.number}`;
       console.log(cbEvent);
       gameInfo.Events.push(cbEvent);
@@ -1007,7 +1009,7 @@ function accioFaceUpCard(attacker, targeted, gameInfo) {
   }
 }
 
-function notifyAccioChoose(gameInfo) { 
+function notifyAccioChoose(gameInfo, rid) { 
   const currAttacker = gameInfo.Players.find(p => p.ID === gameInfo.currAttackerPlayerTurnID);
   const targetedPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currTargetedPlayerTurnID);
   if (targetedPlayer.FaceUpCards.length && targetedPlayer.FaceUpCards.some(c => c.type !== CardTypes.DH)) {
@@ -1028,6 +1030,7 @@ function notifyAccioChoose(gameInfo) {
   }
   else {
     accioRandomCard(currAttacker, targetedPlayer, gameInfo);
+    notifyGameInfo(rid);
   }
 }
 
@@ -1073,7 +1076,7 @@ function notifyDefense(gameInfo, botState, rid) {
         targetedPlayer.isDisarmed = true;
       }
       else {
-        notifyAccioChoose(gameInfo);
+        notifyAccioChoose(gameInfo, rid);
       }
       const attackerPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currAttackerPlayerTurnID);
       if (attackerPlayer.isBot) {
@@ -1406,6 +1409,7 @@ io.on('connection', function (socket) {
     const currPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
     drawCard(currPlayer, gameInfo);
     gameInfo.preDrawnCard = true;
+    notifyGameInfo(roomId);
   });
 
   socket.on("DiscardCard", (card) => {
@@ -1415,7 +1419,8 @@ io.on('connection', function (socket) {
     const cardIdx = currPlayer.Hand.findIndex(c => c.type === card.type && c.suite === card.suite && c.number === card.number);
     if (cardIdx > -1) {
       discardCard(cardIdx, currPlayer, gameInfo);
-      if (currPlayer.Hand <= MAX_HAND_CARDS) {
+      notifyGameInfo(roomId);
+      if (currPlayer.Hand.length <= MAX_HAND_CARDS) {
         endTurn(gameInfo, roomInfo.botState, roomId)
       }
     }
@@ -1425,7 +1430,7 @@ io.on('connection', function (socket) {
     const gameInfo = getGameInfo(roomId);
     const currPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
     checkAndActivateCB(currPlayer, gameInfo);
-    notifyGameInfo(rid);
+    notifyGameInfo(roomId);
   });
 
   socket.on("EndTurn", () => {
@@ -1451,6 +1456,9 @@ io.on('connection', function (socket) {
         gameInfo.preDrawnCard = true;
         notifyGameInfo(roomId);
       }
+    }
+    else {
+      notifyDefense(gameInfo, roomInfo.botState, roomId);
     }
   });
 

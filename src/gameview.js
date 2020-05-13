@@ -60,7 +60,9 @@ class Client extends React.Component{
             myInfo: {},
             state: "Outside",
             // Only available in Gaming state
-            gameInfo: {},
+            gameInfo: {
+                Events: []
+            },
             selectedCard: false,
             selectedCardIdx: -1,
             targetedPlayerId: -1,
@@ -266,11 +268,11 @@ function ConfigurationArea(props){
 function GameView(props){
     return (
         <div className="container-fluid">
-            {props.GameStatus.state === "GamingEnded" && <WinnerArea winnerNames={props.GameStatus.winnerNames}/>}
+            {props.GameStatus.gameInfo.GameEnded && <WinnerArea winnerInfo={props.GameStatus.gameInfo}/>}
             {
                 ["Gaming", "GamingEnded"].includes(props.GameStatus.state) &&
                 <ErrorBoundary io={props.io} GameStatus={props.GameStatus} onGameStatusChange={props.onGameStatusChange} fallBackUI={ResultOperationArea}>
-                    <ResultArea io={props.io} GameStatus={props.GameStatus} onGameStatusChange={props.onGameStatusChange}/>
+                    <ResultArea io={props.io} GameStatus={props.GameStatus} onGameStatusChange={props.onGameStatusChange} onGameStatusMultiChange={props.onGameStatusMultiChange}/>
                 </ErrorBoundary>
             }
         </div>
@@ -278,11 +280,22 @@ function GameView(props){
 }
 
 function WinnerArea(props){
+    var winMessage = '';
+    if (props.GoodForceWins) {
+        winMessage = 'Good Force Wins!'
+    }
+    else if (props.EvilForceWins) {
+        winMessage = 'Evil Force Wins!';
+    }
+    else {
+        winMessage = 'Damn, Peter Wins!'
+    }
     return (
     <div className="winnerWrapper">
         <img className="winnerTrophy"></img>
         <div className="winner">
-            <div>{props.winnerNames && props.winnerNames.length === 1 ? 'WINNER: ' + props.winnerNames : 'WINNERS (TIED): ' + props.winnerNames}
+            <div>
+                {winMessage}
             </div>
         </div>
     </div>
@@ -310,9 +323,12 @@ function getPlayersTable(props) {
     selfPlayerId = props.GameStatus.playerId;
     return (
         <table className="table Results">
+            <thead>
             <tr>
                 <th>NO.</th><th>NAME</th><th>HORCRUXES</th><th>HAND CARDS</th><th>FACE UP CARDS</th>
             </tr>
+            </thead>
+            <tbody>
             {_.map(players, (p, idx) => {
                 const number = idx + 1;
                 const name = getPlayerName(p, selfPlayerId);
@@ -336,6 +352,35 @@ function getPlayersTable(props) {
                     </tr>
                 );
             })}
+            </tbody>
+        </table>
+    );
+}
+
+function getEvents(props) {
+    const events = props.GameStatus.gameInfo.Events.length >= 10 ? props.GameStatus.gameInfo.Events.slice(props.GameStatus.gameInfo.Events.length - 10) : props.GameStatus.gameInfo.Events,
+    selfPlayerName = 'Player ' + props.GameStatus.playerId,
+    transformedEvents = events.map(e => e.replace(selfPlayerName, 'You'));
+    return (
+        <table className="table Results">
+            <thead>
+            <tr>
+                <th>EVENTS</th>
+            </tr>
+            </thead>
+            <tbody>
+            {_.map(transformedEvents, (e, idx) => {
+                const number = idx + 1;
+                return (
+                    <tr>
+                        <td>{number}</td>
+                        <td>
+                            {e}
+                        </td>
+                    </tr>
+                );
+            })}
+            </tbody>
         </table>
     );
 }
@@ -378,7 +423,8 @@ function getCards(props) {
     cards = player.Hand;
     const currPlayerTurnID = props.GameStatus.gameInfo.currPlayerTurnID,
     isCurrentTurn = currPlayerTurnID === player.ID,
-    attackingCardTypes = [CardTypes.EXPELLIARMUS, CardTypes.ACCIO, CardTypes.AVADAKEDAVRA];
+    attackingCardTypes = [CardTypes.EXPELLIARMUS, CardTypes.ACCIO, CardTypes.AVADAKEDAVRA],
+    shouldDiscardExcessCards = isCurrentTurn && player.Hand.length > 5;;
     return (
         <div className="row">
             {cards.map((c, idx) => {
@@ -388,6 +434,9 @@ function getCards(props) {
                     <div className="OptionWrapper">
                         <li className="Option" onClick={() => {
                             if (isCurrentTurn && attackingCardTypes.includes(c.type)) {
+                                props.onGameStatusChange('selectedCard', c);
+                            }
+                            else if (isCurrentTurn && shouldDiscardExcessCards) {
                                 props.onGameStatusChange('selectedCard', c);
                             }
                         }}>
@@ -441,7 +490,7 @@ function getActions(props) {
     selectedCard = props.GameStatus.selectedCard,
     isReadyToCast = selectedCard && props.GameStatus.targetedPlayerId !== -1,
     canPlayAsAK = player.FaceUpCards.some(c => c.type === 'DEATHLY-HALLOW' && c.suite === 'ELDER-WAND'),
-    canActivateCB = player.Hand.some(c => c.type === CardTypes.CB),
+    canActivateCB = player.Hand.some(c => c.type === CardTypes.CB) && !player.FaceUpCards.some(c => c.type === CardTypes.CB),
     canCastProtego = props.GameStatus.gameInfo.currTargetedPlayerTurnID === player.ID &&
                     player.Hand.some(c => c.type === CardTypes.PROTEGO),
     canPreDrawCard = isCurrentTurn && !props.GameStatus.gameInfo.preDrawnCard && player.Hand.length < 5,
@@ -450,6 +499,7 @@ function getActions(props) {
     // TODO: add hallow effect buttons , accio choose
     return (
         <div className="container" align="center">
+            <div className="row">
             {isCurrentTurn && isReadyToCast && (
                 <div className="col" id="attack">
                     <button className="Action" onClick={(e) => {
@@ -490,7 +540,7 @@ function getActions(props) {
                     }}>{'DRAW CARD'}</button>
                 </div>
             )}
-            {isCurrentTurn && !props.GameStatus.passedTurn && (
+            {isCurrentTurn && !shouldDiscardExcessCards && !props.GameStatus.passedTurn && (
                 <div className="col" id="passTurn">
                     <button className="Action" onClick={(e) => {
                         props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1, passedTurn: true});
@@ -529,6 +579,7 @@ function getActions(props) {
                     }}>{'ACCIO CRYSTAL BALL CARD'}</button>
                 </div>
             )}
+            </div>
         </div>
     );
 }
@@ -539,12 +590,25 @@ function ResultArea(props) {
     currPlayerTurnID = gameInfo.currPlayerTurnID,
     isCurrentTurn = currPlayerTurnID === player.ID,
     currTurnPlayer = gameInfo.Players.find(p => p.ID === currPlayerTurnID),
-    turnMessage = 'Current Turn: ' + (isCurrentTurn ? 'Your' : getPlayerName(currTurnPlayer));
+    turnMessage = 'Current Turn: ' + (isCurrentTurn ? 'Your' : getPlayerName(currTurnPlayer)),
+    canCastProtego = props.GameStatus.gameInfo.currTargetedPlayerTurnID === player.ID &&
+                    player.Hand.some(c => c.type === CardTypes.PROTEGO),
+    selectedCard = props.GameStatus.selectedCard,
+    isReadyToCast = selectedCard && props.GameStatus.targetedPlayerId !== -1,
+    shouldDiscardExcessCards = isCurrentTurn && player.Hand.length > 5,
+    excessCards = shouldDiscardExcessCards && (player.Hand.length - 5);
     
     return (
         <div className="ResultsWrapper container">
             <div className="header">{turnMessage}</div>
-            {getPlayersTable(props)}
+            {canCastProtego && <div className="header">Cast Protego or Pass(save up for later)</div>}
+            {isReadyToCast && <div className="header">Select a player to cast the spell on</div>}
+            {isCurrentTurn && !selectedCard && <div className="header">Select a card to cast a spell</div>}
+    {shouldDiscardExcessCards && <div className="header">Discard{' ' + excessCards}{excessCards > 1 ? ' Cards' : ' Card'}</div>}
+            <div className="row">
+                <div className="col-7">{getPlayersTable(props)}</div>
+                <div className="col-5">{getEvents(props)}</div>
+            </div>
             {getCards(props)}
             {getActions(props)}
         </div>
