@@ -337,7 +337,10 @@ async function notifyGameInfo(rid){
 }
 
 function getPlayerName(player) {
-  return player.Character.revealed ? player.Character.name : 'Player ' + player.ID;
+  if (player.Character.revealed) {
+    return player.Character.name
+  }
+  return player.isBot ? 'Player ' + player.ID : player.name;
 }
 
 function getCharacterCards() {

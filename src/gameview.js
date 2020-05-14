@@ -306,7 +306,7 @@ function getPlayerName(p, selfPlayerId) {
             name = name ? name + ' (bot)' : `Player ${p.ID}` + ' (bot)'
         }
         else {
-            name = name ? name + ' (human)' : `Player ${p.ID}` + ' (human)'
+            name = name ? name + ` (${p.name})` : `Player ${p.ID}` + ` (${p.name})`
         }
     }
     return name;
