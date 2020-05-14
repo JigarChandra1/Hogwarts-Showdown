@@ -282,10 +282,10 @@ function GameView(props){
 
 function WinnerArea(props){
     var winMessage = '';
-    if (props.GoodForceWins) {
+    if (props.winnerInfo.GoodForceWins) {
         winMessage = 'Good Force Wins!'
     }
-    else if (props.EvilForceWins) {
+    else if (props.winnerInfo.EvilForceWins) {
         winMessage = 'Evil Force Wins!';
     }
     else {
