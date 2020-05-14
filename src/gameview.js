@@ -473,11 +473,16 @@ function getNumbersSummingToTarget(targetSum, reqNumbers, sortedArray, fromIdx, 
     return [false];
   }
 
-function hasCombination(HandCards) {
+  function hasCombination(HandCards, count) {
     const cfcCards = HandCards.filter(c => c.type === CardTypes.CFC),
     sortedCfcNumbers = cfcCards.map(c => c.number).sort((a, b) => a - b);
-    const combination = getNumbersSummingToTarget(7, 3, sortedCfcNumbers, 0, []);
-    return combination[0];
+    for (let i = 1; i <= 3; i++) {
+      const combination = getNumbersSummingToTarget(7, i, sortedCfcNumbers, 0, []);
+      if (combination[0]) {
+        return true;
+      }
+    }
+    return false;
   }
 
   function deckHasHallowCards(gameInfo) {

@@ -575,8 +575,13 @@ function getNumbersSummingToTarget(targetSum, reqNumbers, sortedArray, fromIdx, 
 function hasCombination(HandCards, count) {
   const cfcCards = HandCards.filter(c => c.type === CardTypes.CFC),
   sortedCfcNumbers = cfcCards.map(c => c.number).sort((a, b) => a - b);
-  const combination = getNumbersSummingToTarget(7, 3, sortedCfcNumbers, 0, []);
-  return combination[0];
+  for (let i = 1; i <= 3; i++) {
+    const combination = getNumbersSummingToTarget(7, i, sortedCfcNumbers, 0, []);
+    if (combination[0]) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function getIneligibleCFCIndex(HandCards) {
@@ -631,7 +636,7 @@ function discardExcessCards(player, gameInfo) {
 
       const cfcCount = player.Hand.filter(c => c.type === CardTypes.CFC);
       if (cfcCount > 3) {
-        if (!hasCombination(player.Hand, 3) && shouldDiscardCfc()) {
+        if (!hasCombination(player.Hand) && shouldDiscardCfc()) {
           const cardIdx = getRandomCFCIndex(player.Hand);
           discardCard(cardIdx, player, gameInfo);
           continue;
@@ -661,10 +666,20 @@ function discardExcessCards(player, gameInfo) {
   }
 }
 
+function getHallowCombination(sortedCfcNumbers) {
+  for (let i = 1; i <=3; i++) {
+    const combination = getNumbersSummingToTarget(7, i, sortedCfcNumbers, 0, []);
+    if (combination[0]) {
+      return combination[1];
+    }
+  }
+  throw new Error('Provided numbers do not sum to 7: ' + sortedCfcNumbers);
+}
+
 function getHallowCard(player, gameInfo) {
   const cfcCards = player.Hand.filter(c => c.type === CardTypes.CFC),
-  sortedCfcNumbers = cfcCards.map(c => c.number).sort((a, b) => a - b);;
-  const cfcNumbers = getNumbersSummingToTarget(7, 3, sortedCfcNumbers, 0, [])[1];
+  sortedCfcNumbers = cfcCards.map(c => c.number).sort((a, b) => a - b);
+  const cfcNumbers = getHallowCombination(sortedCfcNumbers);
   const indexes = [];
   for (let i = 0; i < cfcNumbers.length; i++) {
     const number = cfcNumbers[i];
@@ -1122,7 +1137,7 @@ function playBotTurn(player, botState, gameInfo, rid) {
    * 3. Notify human if targeted, else invoke bot turn for defending
    */
 
-  if (hasCombination(player.Hand, 3)) {
+  if (hasCombination(player.Hand)) {
     if (deckHasHallowCards(gameInfo)) {
       getHallowCard(player, gameInfo);
     }
