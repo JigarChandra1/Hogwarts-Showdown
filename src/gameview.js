@@ -2,7 +2,7 @@
 
 const e = React.createElement;
 import _ from 'lodash';
-import pyschLogo from './images/psych.jpg'
+import logo from './images/hogwarts_showdown_logo.jpg'
 
 const CardTypes = {
     HORCRUX: 'HORCRUX',
@@ -143,7 +143,7 @@ class Client extends React.Component{
         const iOS = !!navigator.platform && /iPad|iPhone/.test(navigator.platform);
         if(this.state.state=="Outside"){
             return (<div className="GameViewWrapper container">
-                <img className="PsychLogo" src={pyschLogo} alt="Logo" />
+                <img className="Logo" src={logo} alt="Logo" />
                 {!iOS && <button className="Button" onClick={(e) => {
                     var ID = window.prompt("Please input the room ID (number) you want to join", "");
                     var rid = parseInt(ID);
@@ -157,13 +157,6 @@ class Client extends React.Component{
                     });
                 }}>Join</button>}
                 {iOS && <div className="header">Sorry, this game is currently unavailable for iOS devices</div>}
-                <div className="HowToPlay">How To Play:</div>
-                <iframe src='https://www.youtube.com/embed/qu4ttGfTpOg'
-                frameBorder='0'
-                allow='autoplay; encrypted-media'
-                allowFullScreen
-                title='video'
-                />
             </div>); 
         }
         else if(this.state.state=="InRoom"){
