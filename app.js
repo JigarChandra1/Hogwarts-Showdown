@@ -1369,9 +1369,6 @@ io.on('connection', function (socket) {
   });
   // InRoom Related
   socket.on("changeName",(newName) => {
-    if(!sanityCheckR(clientState,roomId)){
-      return;
-    }
     clientState.playerName = newName;
     notifyRoomInfo(roomId);
   });
