@@ -12,8 +12,6 @@ var io = require('socket.io')(server);
 var path = require('path');
 const _ = require('lodash');
 
-const CLUES = require('./clues.json');
-
 const CardTypes = {
   HORCRUX: 'HORCRUX',
   AVADAKEDAVRA: 'AVADAKEDAVRA',
