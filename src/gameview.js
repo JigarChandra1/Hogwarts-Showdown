@@ -354,8 +354,11 @@ function getPlayersTable(props) {
 function getEvents(props) {
     const events = props.GameStatus.gameInfo.Events.length ? props.GameStatus.gameInfo.Events.slice(props.GameStatus.lastSeenEventIdx) : props.GameStatus.gameInfo.Events,
     selfPlayerName = 'Player ' + props.GameStatus.playerId,
-    transformedEvents = events.map(e => e.replace(selfPlayerName, 'You'));
+    transformedEvents = events.map(e => e.replace(selfPlayerName, 'You')),
+    currPlayerTurnID = props.GameStatus.gameInfo.currPlayerTurnID,
+    currPlayerIsBot = props.GameStatus.gameInfo.Players.find(p => p.ID === currPlayerTurnID).isBot;
     return (
+        <div className="container">
         <table className="table Results">
             <thead>
             <tr>
@@ -376,6 +379,15 @@ function getEvents(props) {
             })}
             </tbody>
         </table>
+        {currPlayerIsBot && (
+            <div className="col" id="playBotTurn">
+                <button className="Action" onClick={(e) => {
+                    props.io.emit("PlayBotTurn");
+                    props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1, passedTurn: false, lastSeenEventIdx: lastSeenEventIdx});
+                }}>PLAY BOT TURN</button>
+            </div>
+        )}
+        </div>
     );
 }
 
@@ -486,6 +498,7 @@ function getActions(props) {
     const player = props.GameStatus.gameInfo.Players.find(p => p.ID === props.GameStatus.playerId),
     currPlayerTurnID = props.GameStatus.gameInfo.currPlayerTurnID,
     isCurrentTurn = currPlayerTurnID === player.ID,
+    currPlayerIsBot = props.GameStatus.gameInfo.Players.find(p => p.ID === currPlayerTurnID).isBot,
     selectedCard = props.GameStatus.selectedCard,
     isReadyToCast = selectedCard && props.GameStatus.targetedPlayerId !== -1,
     canPlayAsAK = player.FaceUpCards.some(c => c.type === 'DEATHLY-HALLOW' && c.suite === 'ELDER-WAND'),

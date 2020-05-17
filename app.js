@@ -981,18 +981,7 @@ function endTurn(gameInfo, botState, rid) {
       gameInfo.PeterWins = true;
     }
   }
-  if (!gameInfo.GameEnded) {
-    const nextPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
-    if (nextPlayer.isBot) {
-      playBotTurn(nextPlayer, botState, gameInfo, rid);
-    }
-    else {
-      notifyGameInfo(rid);
-    }
-  }
-  else {
-    notifyGameInfo(rid);
-  }
+  notifyGameInfo(rid);
 }
 
 function accioRandomCard(attacker, targeted, gameInfo) {
@@ -1450,6 +1439,13 @@ io.on('connection', function (socket) {
     const roomInfo = getRoomInfo(roomId);
     const gameInfo = getGameInfo(roomId);
     endTurn(gameInfo, roomInfo.botState, roomId);
+  });
+
+  socket.on("PlayBotTurn", () => {
+    const roomInfo = getRoomInfo(roomId);
+    const gameInfo = getGameInfo(roomId);
+    const player = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
+    playBotTurn(player, roomInfo.botState, gameInfo, roomId);
   });
 
   socket.on("GetHallow", () => {
