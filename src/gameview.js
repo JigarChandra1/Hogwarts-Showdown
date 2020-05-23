@@ -63,6 +63,7 @@ class Client extends React.Component{
             gameInfo: {
                 Events: []
             },
+            verdicts: _.times(7, () => 'unknown'),
             selectedCard: false,
             selectedCardIdx: -1,
             targetedPlayerId: -1,
@@ -314,21 +315,45 @@ function getPlayerName(p, selfPlayerId) {
 
 function getPlayersTable(props) {
     const players = props.GameStatus.gameInfo.Players,
-    selfPlayerId = props.GameStatus.playerId;
+    selfPlayerId = props.GameStatus.playerId,
+    verdicts = props.GameStatus.verdicts;
     return (
         <table className="table Results">
             <thead>
             <tr>
-                <th>NO.</th><th>NAME</th><th>HORCRUXES</th><th>HAND CARDS</th><th>FACE UP CARDS</th>
+                <th>VERDICT</th><th>NAME</th><th>HORCRUXES</th><th>HAND CARDS</th><th>FACE UP CARDS</th>
             </tr>
             </thead>
             <tbody>
             {_.map(players, (p, idx) => {
-                const number = idx + 1;
+                const verdict = selfPlayerId === p.ID ? 'you' : verdicts[idx];
                 const name = getPlayerName(p, selfPlayerId);
                 return (
                     <tr>
-                        <td>{number}</td>
+                        <td>
+                            <div className="Action" onClick={() => {
+                                    const copy = _.clone(verdicts);
+                                    var newVal;
+                                    switch(verdict) {
+                                        case 'unknown': {
+                                            newVal = 'ally';
+                                            break;
+                                        }
+                                        case 'ally': {
+                                            newVal = 'foe';
+                                            break;
+                                        }
+                                        case 'foe': {
+                                            newVal = 'unknown';
+                                            break;
+                                        }
+                                    }
+                                    copy[idx] = newVal;
+                                    props.onGameStatusChange('verdicts', copy);
+                                }}>
+                                {verdict}
+                            </div> 
+                                </td>
                         <td>
                             <div className="OptionWrapper">
                                 <div className="Option" onClick={() => {
