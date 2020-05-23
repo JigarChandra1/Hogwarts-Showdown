@@ -1446,6 +1446,7 @@ io.on('connection', function (socket) {
     const gameInfo = getGameInfo(roomId);
     const player = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
     playBotTurn(player, roomInfo.botState, gameInfo, roomId);
+    notifyGameInfo(roomId);
   });
 
   socket.on("GetHallow", () => {
