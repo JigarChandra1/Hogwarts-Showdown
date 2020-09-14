@@ -408,7 +408,7 @@ function getEvents(props) {
             <div className="col" id="playBotTurn">
                 <button className="Action" onClick={(e) => {
                     props.io.emit("PlayBotTurn");
-                    props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1, passedTurn: false, lastSeenEventIdx: lastSeenEventIdx});
+                    props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1, passedTurn: false});
                 }}>PLAY BOT TURN</button>
             </div>
         )}
