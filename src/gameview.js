@@ -376,6 +376,7 @@ function getPlayersTable(props) {
     );
 }
 
+
 function getEvents(props) {
     const events = props.GameStatus.gameInfo.Events.length ? props.GameStatus.gameInfo.Events.slice(props.GameStatus.lastSeenEventIdx) : props.GameStatus.gameInfo.Events,
     selfPlayerName = 'Player ' + props.GameStatus.playerId,
