@@ -356,7 +356,7 @@ function getPlayersTable(props) {
                         <td>
                             <div className="OptionWrapper">
                                 <div className="Option" onClick={() => {
-                                    if (props.GameStatus.selectedCard) {
+                                    if (!p.FaceUpCards.some(c => c.type === CardTypes.DH && c.suite === 'CLOAK-OF-INVISIBILITY') && props.GameStatus.selectedCard) {
                                         props.onGameStatusChange('targetedPlayerId', p.ID);
                                     }
                                 }}>
