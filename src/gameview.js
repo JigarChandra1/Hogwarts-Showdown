@@ -191,7 +191,6 @@ function RoomView(props){
 }
 
 function PlayersArea(props){
-    console.log('players: ' + JSON.stringify(props.players, null, 2));
     const playersItems = _.map(props.players, (p,i) => 
         {
             return (
