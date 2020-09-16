@@ -315,6 +315,7 @@ function getPlayerName(p, selfPlayerId) {
 function getPlayersTable(props) {
     const players = props.GameStatus.gameInfo.Players,
     selfPlayerId = props.GameStatus.playerId,
+    selfPlayer =  props.GameStatus.gameInfo.Players.find(p => p.ID === selfPlayerId),
     verdicts = props.GameStatus.verdicts;
     return (
         <table className="table Results">
@@ -356,7 +357,9 @@ function getPlayersTable(props) {
                         <td>
                             <div className="OptionWrapper">
                                 <div className="Option" onClick={() => {
-                                    if (!p.FaceUpCards.some(c => c.type === CardTypes.DH && c.suite === 'CLOAK-OF-INVISIBILITY') && props.GameStatus.selectedCard) {
+                                    if (!p.FaceUpCards.some(c => c.type === CardTypes.DH && c.suite === 'CLOAK-OF-INVISIBILITY') 
+                                        && (props.GameStatus.selectedCard 
+                                            || selfPlayer.FaceUpCards.some(c => c.type === CardTypes.DH && c.suite === 'RESURRECTION-STONE'))) {
                                         props.onGameStatusChange('targetedPlayerId', p.ID);
                                     }
                                 }}>
@@ -533,7 +536,10 @@ function getActions(props) {
     canPreDrawCard = isCurrentTurn && !props.GameStatus.gameInfo.preDrawnCard && player.Hand.length < 5,
     drawCardPostPass = props.GameStatus.passedTurn && !props.GameStatus.gameInfo.preDrawnCard,
     shouldDiscardExcessCards = isCurrentTurn && player.Hand.length > 5,
-    lastSeenEventIdx = props.GameStatus.gameInfo.Events.length ? props.GameStatus.gameInfo.Events.length - 1: 0;
+    lastSeenEventIdx = props.GameStatus.gameInfo.Events.length ? props.GameStatus.gameInfo.Events.length - 1: 0,
+    resurrectPlayer = player.FaceUpCards.some(c => c.type === 'DEATHLY-HALLOW' && c.suite === 'RESURRECTION-STONE') && 
+        props.GameStatus.targetedPlayerId !== -1 &&
+        props.GameStatus.gameInfo.Players.find(p => p.ID === props.GameStatus.targetedPlayerId && p.HorcruxCount === 0);
     // TODO: add hallow effect buttons , accio choose
     return (
         <div className="container" align="center">
@@ -544,6 +550,22 @@ function getActions(props) {
                         props.io.emit("PlayAttackingCard", { card: selectedCard, playAsAK: false, targetedPlayerId: props.GameStatus.targetedPlayerId, passedTurn: false });
                         props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1});
                     }}>{'CAST ' + props.GameStatus.selectedCard.type}</button>
+                </div>
+            )}
+            {isCurrentTurn && isReadyToCast && canPlayAsAK && (
+                <div className="col" id="attack-as-ak">
+                    <button className="Action" onClick={(e) => {
+                        props.io.emit("PlayAttackingCard", { card: selectedCard, playAsAK: true, targetedPlayerId: props.GameStatus.targetedPlayerId, passedTurn: false });
+                        props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1});
+                    }}>{'CAST as AVADAKEDAVRA'}</button>
+                </div>
+            )}
+            {isCurrentTurn && resurrectPlayer && (
+                <div className="col" id="resurrect">
+                    <button className="Action" onClick={(e) => {
+                        props.io.emit("Resurrect", { targetedPlayerId: props.GameStatus.targetedPlayerId, passedTurn: false });
+                        props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1});
+                    }}>{'RESURRECT'}</button>
                 </div>
             )}
             {isCurrentTurn && !shouldDiscardExcessCards && (

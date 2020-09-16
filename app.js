@@ -396,7 +396,7 @@ function initGame(roomInfo){
       pinfo._socket.emit("id",ID);
       const characterCard = characterCards[i],
         revealed = [VOLDEMORT, ALBUS, HARRY].includes(characterCard);
-      
+
       gameInfo.Players.push(
         {
           Hand: [],
@@ -1471,6 +1471,17 @@ io.on('connection', function (socket) {
     else {
       notifyDefense(gameInfo, roomInfo.botState, roomId);
     }
+  });
+
+  socket.on("Resurrect", ({targetedPlayerId}) => {
+    const gameInfo = getGameInfo(roomId);
+    const currPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
+    const targetedPlayer = gameInfo.Players.find(p => p.ID === targetedPlayerId);
+    targetedPlayer.HorcruxCount += 1;
+    const rsEvent = `${targetedPlayer.Character.name} was resurrected by ${currPlayer.Character.name}`;
+    console.log(rsEvent);
+    gameInfo.Events.push(rsEvent);
+    notifyGameInfo(roomId);
   });
 
   socket.on("Restart",() => {

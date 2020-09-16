@@ -1,3 +1,4 @@
 TODOs:
 
-1. Hallow effects from UX - cast as A.K, restrict casting spells on player with Invisibility Cloak, resurrect player
+1. A player should not resurrect another player without knowing who they are, i.e check their revealed name
+2. unable to see get-hallow when all hallows are taken
