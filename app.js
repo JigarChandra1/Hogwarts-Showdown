@@ -645,6 +645,19 @@ function discardExcessCards(player, gameInfo) {
       }
     }
 
+    let discarded = false;
+    [CardTypes.ACCIO, CardTypes.PROTEGO, CardTypes.EXPELLIARMUS].forEach(type => {
+      if (player.Hand.filter(c => c.type === type).length > 1) {
+        const cardIdx = player.Hand.findIndex(c => c.type === type);
+        discardCard(cardIdx, player, gameInfo);
+        discarded = true;
+      }
+    });
+
+    if (discarded) {
+      continue;
+    }
+
     const accioCardIdx = player.Hand.findIndex(c => c.type === CardTypes.ACCIO);
     if (accioCardIdx > -1) {
       discardCard(accioCardIdx, player, gameInfo);
@@ -849,7 +862,9 @@ function playAttackingCard(card, playAsAK, player, targetedPlayerId, gameInfo, b
 
 function guessAndUpdateBotDeductions(gameInfo, botState) {
   const allGoodForceEliminated = gameInfo.Players.filter(p => p.Character.revealed
-     && GOOD_FORCES.includes(p.Character.name) && !p.HorcruxCount).length === 3;
+     && GOOD_FORCES.includes(p.Character.name) && !p.HorcruxCount).length === 3,
+     voldemortPlayer = gameInfo.Players.find(p => p.Character.name === VOLDEMORT),
+     voldemortHasCI = voldemortPlayer.FaceUpCards.some(c => c.type === CardTypes.DH && c.suite === HALLOWS.CI);
   if (allGoodForceEliminated) {
     // evil force do not know who Peter is, they assume all other players except Voldemort as foe and attack randomly
     // until Peter attacks Voldemort. With humans playing the game they would discuss a strategy to figure out Peter
@@ -868,7 +883,7 @@ function guessAndUpdateBotDeductions(gameInfo, botState) {
       });
     });
   }
-  else if (gameInfo.Rounds >= 3) {
+  else if (gameInfo.Rounds >= 5 && !voldemortHasCI) {
     botState.forEach(state => {
       const self = gameInfo.Players.find(p => p.ID === state.playerID);
       const unknowns = state.playerDeductions.filter(d => d.verdict === VERDICTS.UNKOWN);
@@ -882,6 +897,16 @@ function guessAndUpdateBotDeductions(gameInfo, botState) {
             u.verdict = VERDICTS.FOE;
           }
           else {
+            /*
+            if (
+              uPlayer.Character.name !== PETER  &&
+              self.Character.name !== PETER  &&
+              !(GOOD_FORCES.includes(self.Character.name) && GOOD_FORCES.includes(uPlayer.Character.name) || 
+              (EVIL_FORCES.includes(self.Character.name) && EVIL_FORCES.includes(uPlayer.Character.name)))
+              ) {
+                console.log('incorrect inference!');
+              }
+              */
             u.verdict = VERDICTS.ALLY;
           }
         }
@@ -905,11 +930,11 @@ function endTurn(gameInfo, botState, rid) {
       gameInfo.Rounds += 1;
   
       // TODO - debugging
-      /**
-       if (gameInfo.Rounds >= 10) {
+      
+       if (gameInfo.Rounds >= 30) {
         console.log('Inspect game');
       }
-       */
+       
   
       guessAndUpdateBotDeductions(gameInfo, botState);
       if (gameInfo.Rounds === 50) {
@@ -1289,7 +1314,7 @@ function startGame(rid){
 }
 
 // TODO - temp test code
-/**
+/*
  roomInfo = {playerList: []}
 function startGameSim() {
   initGame(roomInfo);
@@ -1322,6 +1347,7 @@ results.PlayersAttemptedHallowFromEmptyDeck = gameStats.map(g => g.PlayersAttemp
 console.log('Results: ' + JSON.stringify(results, null, 2));
 process.exit();
 */
+
 
 function isGameEnded(rid) {
   const gameInfo = getGameInfo(rid);
