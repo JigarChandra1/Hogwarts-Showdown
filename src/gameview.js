@@ -312,6 +312,23 @@ function getPlayerName(p, selfPlayerId) {
     return name;
 }
 
+function getImageName(card) {
+    let name;
+    switch(card.type) {
+        case CardTypes.CFC:
+            name = card.suite.toLowerCase() + '_' + card.number;
+            break;
+        case CardTypes.PROTEGO:
+        case CardTypes.EXPELLIARMUS:
+        case CardTypes.ACCIO:
+        case CardTypes.AVADAKEDAVRA:
+        case CardTypes.CB:
+            name = card.type.toLowerCase();
+            break;
+    }
+    return 'assets/' + name + '.jpg'
+}
+
 function getPlayersTable(props) {
     const players = props.GameStatus.gameInfo.Players,
     selfPlayerId = props.GameStatus.playerId,
@@ -466,16 +483,17 @@ function getCards(props) {
                 return (
                     <div className={className}>
                     <div className="OptionWrapper">
-                        <li className="Option" onClick={() => {
+                        {c.type === CardTypes.CB && (
+                            <img className="Logo" src={'assets/crystal_ball_' + c.number + '.jpg'} alt={getCardName(c)} />
+                        )}
+                        <img className="Logo" src={getImageName(c)} alt={getCardName(c)} onClick={() => {
                             if (isCurrentTurn && attackingCardTypes.includes(c.type)) {
                                 props.onGameStatusChange('selectedCard', c);
                             }
                             else if (isCurrentTurn && shouldDiscardExcessCards) {
                                 props.onGameStatusChange('selectedCard', c);
                             }
-                        }}>
-                            {getCardName(c)}
-                        </li>
+                        }} />
                     </div>
                     </div>
                 );
