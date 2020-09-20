@@ -558,7 +558,9 @@ function getActions(props) {
     resurrectPlayer = player.FaceUpCards.some(c => c.type === 'DEATHLY-HALLOW' && c.suite === 'RESURRECTION-STONE') && 
         props.GameStatus.targetedPlayerId !== -1 &&
         props.GameStatus.gameInfo.Players.find(p => p.ID === props.GameStatus.targetedPlayerId && p.HorcruxCount === 0),
-    targetedPlayerFacepUpCards = props.GameStatus.AccioChoose && props.GameStatus.gameInfo.Players.find(p => p.ID === props.GameStatus.targetedPlayerId).FaceUpCards;
+    targetedPlayerFacepUpCards = props.GameStatus.AccioChoose 
+    && props.GameStatus.gameInfo.currTargetedPlayerTurnID >= 0
+    && props.GameStatus.gameInfo.Players.find(p => p.ID === props.GameStatus.gameInfo.currTargetedPlayerTurnID).FaceUpCards;
     // TODO: add hallow effect buttons , accio choose
     return (
         <div className="container" align="center">
@@ -650,7 +652,7 @@ function getActions(props) {
                     }}>{'ACCIO RANDOM HAND CARD'}</button>
                 </div>
             )}
-            {props.GameStatus.AccioChoose && targetedPlayerFacepUpCards.map(card => (
+            {props.GameStatus.AccioChoose && targetedPlayerFacepUpCards && targetedPlayerFacepUpCards.map(card => (
                 <div className="col" id="accioFaceUp">
                     <button className="Action" onClick={(e) => {
                         props.io.emit("AccioChosen", {chooseRandom: false, selectedCard: card});

@@ -396,7 +396,6 @@ function initGame(roomInfo){
       pinfo._socket.emit("id",ID);
       const characterCard = characterCards[i],
         revealed = [VOLDEMORT, ALBUS, HARRY].includes(characterCard);
-
       gameInfo.Players.push(
         {
           Hand: [],
@@ -1038,7 +1037,7 @@ function accioFaceUpCard(attacker, targeted, gameInfo, selectedCard) {
   
   if (idx !== -1) {
     const card = targeted.FaceUpCards.splice(idx, 1)[0];
-    attacker.Hand.push(card);
+    attacker.FaceUpCards.push(card);
     //const accioEvent = `${attacker.Character.name} won the Accio duel and picked a ${card.type} card`;
     const accioEvent = `${getPlayerName(attacker)} won the Accio duel and picked a ${card.type} card`;
     //const accioEvent = `Player ${attacker.ID} (${attacker.name}) won the Accio duel and picked a ${card.type} card`;
@@ -1053,7 +1052,7 @@ function accioFaceUpCard(attacker, targeted, gameInfo, selectedCard) {
 function notifyAccioChoose(gameInfo, rid) { 
   const currAttacker = gameInfo.Players.find(p => p.ID === gameInfo.currAttackerPlayerTurnID);
   const targetedPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currTargetedPlayerTurnID);
-  if (targetedPlayer.FaceUpCards.length && targetedPlayer.FaceUpCards.some(c => c.type !== CardTypes.DH)) {
+  if (targetedPlayer.FaceUpCards.length) {
     if (currAttacker.isBot) {
       const chooseFaceUp = Math.floor(Math.random() * 100) < 50;
       if (chooseFaceUp) {
@@ -1503,6 +1502,7 @@ io.on('connection', function (socket) {
       }
     }
     else {
+      notifyGameInfo(roomId);
       notifyDefense(gameInfo, roomInfo.botState, roomId);
     }
   });
