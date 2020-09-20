@@ -374,9 +374,11 @@ function getPlayersTable(props) {
                         <td>
                             <div className="OptionWrapper">
                                 <div className="Option" onClick={() => {
-                                    if (!p.FaceUpCards.some(c => c.type === CardTypes.DH && c.suite === 'CLOAK-OF-INVISIBILITY') 
-                                        && (props.GameStatus.selectedCard 
-                                            || selfPlayer.FaceUpCards.some(c => c.type === CardTypes.DH && c.suite === 'RESURRECTION-STONE'))) {
+                                    if ((props.GameStatus.selectedCard && 
+                                            (!p.FaceUpCards.some(c => c.type === CardTypes.DH && c.suite === 'CLOAK-OF-INVISIBILITY' 
+                                            || props.GameStatus.selectedCard.type === CardTypes.ACCIO)) 
+                                        )
+                                        || selfPlayer.FaceUpCards.some(c => c.type === CardTypes.DH && c.suite === 'RESURRECTION-STONE')) {
                                         props.onGameStatusChange('targetedPlayerId', p.ID);
                                     }
                                 }}>
