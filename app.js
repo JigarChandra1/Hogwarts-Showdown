@@ -1026,8 +1026,16 @@ function accioRandomCard(attacker, targeted, gameInfo) {
   gameInfo.Events.push(accioEvent);
 }
 
-function accioFaceUpCard(attacker, targeted, gameInfo) {
-  const idx = targeted.FaceUpCards.findIndex(c => c.type === CardTypes.CB);
+function accioFaceUpCard(attacker, targeted, gameInfo, selectedCard) {
+  let idx;
+  if (selectedCard) {
+    idx = targeted.FaceUpCards.findIndex(c => c.type === selectedCard.type 
+      && c.suite === selectedCard.suite 
+      && c.number === selectedCard.number);
+  } else {
+    idx = targeted.FaceUpCards.findIndex(c => c.type === CardTypes.CB);
+  }
+  
   if (idx !== -1) {
     const card = targeted.FaceUpCards.splice(idx, 1)[0];
     attacker.Hand.push(card);
@@ -1410,7 +1418,7 @@ io.on('connection', function (socket) {
   });
 
   // Game Related
-  socket.on("AccioChosen",({chooseRandom}) => {
+  socket.on("AccioChosen",({chooseRandom, selectedCard}) => {
     const roomInfo = getRoomInfo(roomId);
     const gameInfo = getGameInfo(roomId);
     const currAttacker = gameInfo.Players.find(p => p.ID === gameInfo.currAttackerPlayerTurnID);
@@ -1419,7 +1427,7 @@ io.on('connection', function (socket) {
       accioRandomCard(currAttacker, targetedPlayer, gameInfo);
     }
     else {
-      accioFaceUpCard(currAttacker, targetedPlayer, gameInfo);
+      accioFaceUpCard(currAttacker, targetedPlayer, gameInfo, selectedCard);
     }
     notifyGameInfo(roomId);
     if (!gameInfo.preDrawnCard) {
