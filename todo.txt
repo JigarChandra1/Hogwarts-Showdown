@@ -1,6 +1,8 @@
 TODOs:
 
-1. A player should not resurrect another player without knowing who they are, i.e check their revealed name
+1. A bot-player should not resurrect another player without knowing who they are, i.e check their revealed name
 2. New card: Dementors. All players except who casted give up an Aveda Kedavra or lose a Horcrux
-3. with 2 players, stuck when accio cast on human, human casts protego: Player has unknown FaceUp cards: []
+3. New card: Philospher's stone. Player receives 2 horcruxes (max 5 horcruxes)
+4. New card: Dodge. Can play against any attacking card and negate the effect.
+5. with 2 players, stuck when accio cast on human, human casts protego: Player has unknown FaceUp cards: []
     at accioFaceUpCard (C:\Users\jbc00\GitHub\Hogwarts-Showdown\app.js:1016:11)
