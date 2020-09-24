@@ -409,7 +409,7 @@ function initGame(roomInfo){
           Hand: [],
           FaceUpCards: [],
           Character: {name: characterCard, revealed: revealed},
-          HorcruxCount: characterCard === VOLDEMORT ? 4 : 3,
+          HorcruxCount: characterCard === VOLDEMORT ? 5 : 4,
           ID: ID,
           name: pinfo.playerName,
           isDisarmed: false,
