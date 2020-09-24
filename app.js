@@ -1412,9 +1412,6 @@ io.on('connection', function (socket) {
     notifyRoomInfo(roomId);
   });
   socket.on("Start",() => {
-    if(!sanityCheckR(clientState,roomId)){
-      return;
-    }
     startGame(roomId);
   });
 
