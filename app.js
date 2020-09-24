@@ -1505,17 +1505,13 @@ io.on('connection', function (socket) {
     const gameInfo = getGameInfo(roomId);
     const currPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
     playAttackingCard(card, playAsAK, currPlayer, targetedPlayerId, gameInfo, roomInfo.botState);
-    if (card.type === CardTypes.AVADAKEDAVRA || playAsAK) {
-      if (!gameInfo.preDrawnCard) {
-        drawCard(currPlayer, gameInfo);
-        gameInfo.preDrawnCard = true;
-        notifyGameInfo(roomId);
-      }
+    if (!gameInfo.preDrawnCard) {
+      drawCard(currPlayer, gameInfo);
+      gameInfo.preDrawnCard = true;
     }
-    else {
-      notifyGameInfo(roomId);
-      notifyDefense(gameInfo, roomInfo.botState, roomId);
-    }
+    notifyGameInfo(roomId);
+    notifyDefense(gameInfo, roomInfo.botState, roomId);
+    
   });
 
   socket.on("Resurrect", ({targetedPlayerId}) => {
