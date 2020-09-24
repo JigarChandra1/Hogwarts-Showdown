@@ -20,7 +20,8 @@ const CardTypes = {
   CFC: 'CHOCOLATE-FROG-CARD',
   DH: 'DEATHLY-HALLOW',
   CB: 'CRYSTAL-BALL',
-  ACCIO: 'ACCIO'
+  ACCIO: 'ACCIO',
+  DODGE: 'DODGE'
 };
 
 class Card {
@@ -80,6 +81,13 @@ const PROTEGO = [21].reduce((acc, cnt) => {
 const ACCIO = [18].reduce((acc, cnt) => {
   for (let i = 0; i < cnt; i++) {
     acc.push(new Card(CardTypes.ACCIO));
+  }
+  return acc;
+}, []);
+
+const DODGE = [8].reduce((acc, cnt) => {
+  for (let i = 0; i < cnt; i++) {
+    acc.push(new Card(CardTypes.DODGE));
   }
   return acc;
 }, []);
@@ -430,7 +438,7 @@ function initGame(roomInfo){
     }
   }
 
-  const MAIN_CARDS = shuffle(CRYSTAL_BALLS.concat(CFC).concat(AVADAKEDAVRA).concat(EXPELLIARMUS).concat(PROTEGO).concat(ACCIO));
+  const MAIN_CARDS = shuffle(CRYSTAL_BALLS.concat(CFC).concat(AVADAKEDAVRA).concat(EXPELLIARMUS).concat(PROTEGO).concat(ACCIO).concat(DODGE));
   for (let i = 0; i < MAX_HAND_CARDS; i++) {
     for (let j = 0; j < REQUIRED_PLAYERS; j++) {
       const card = MAIN_CARDS.splice(((i * REQUIRED_PLAYERS) + j), 1)[0];
@@ -519,35 +527,6 @@ function discardCard(cardIdx, player, gameInfo) {
   console.log(discardEvent);
   gameInfo.DiscardPile.push(card);
   gameInfo.Events.push(discardEvent);
-}
-
-function hasConsecutiveCombination(cfcCards, count) {
-  const countBySuites = _.groupBy(cfcCards, c => c.suite);
-  const suiteWithCount = Object.keys(countBySuites).find(k => countBySuites[k].length === count);
-  if (suiteWithCount) {
-    var hasConsecutiveCombination = true;
-    const orderedCards = cfcCards.filter(c => c.suite === suiteWithCount).sort((a, b) => {a.number - b.number});
-    let curr = orderedCards[0];
-    for (let i = 1; i < count; i++) {
-      if (orderedCards[i] !== (curr + 1)) {
-        hasConsecutiveCombination = false;
-        break;
-      }
-      curr = orderedCards[i];
-    }
-    if (hasConsecutiveCombination) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function hasNumberCombination(cfcCards, count) {
-  const countByNumber = _.groupBy(cfcCards, c => c.number);
-  if (Object.keys(countByNumber).some(k => countByNumber[k].length === count)) {
-    return true;
-  }
-  return false;
 }
 
 function getNumbersSummingToTarget(targetSum, reqNumbers, sortedArray, fromIdx, result) {
@@ -815,36 +794,7 @@ function updateBotDeductionsOnAttack(attackerPlayerId, targetedPlayerId, gameInf
 }
 
 function playAttackingCard(card, playAsAK, player, targetedPlayerId, gameInfo, botState) {
-  if (card.type === CardTypes.AVADAKEDAVRA || playAsAK) {
-    const cardIdx = player.Hand.findIndex(c => c.type === card.type && c.suite === card.suite && c.number === card.number);
-    gameInfo.DiscardPile.push(player.Hand.splice(cardIdx, 1)[0]);
-    const targetedPlayer = gameInfo.Players.find(p => p.ID === targetedPlayerId);
-    targetedPlayer.HorcruxCount -= 1;
-    //const akEvent = playAsAK ? `${player.Character.name} casted ${getCardShortHand(card)} as Avada Kedavra on ${targetedPlayer.Character.name}` 
-    //:  `${player.Character.name} casted Avada Kedavra on ${targetedPlayer.Character.name}`;
-    const akEvent = playAsAK ? `Player ${getPlayerName(player)} casted ${getCardShortHand(card)} as Avada Kedavra on Player ${getPlayerName(targetedPlayer)}` 
-    :  `${getPlayerName(player)} casted Avada Kedavra on ${getPlayerName(targetedPlayer)}`;
-    //const akEvent = `Player ${player.ID} (${player.name}) casted Avada Kedavra on Player ${targetedPlayerId} (${targetedPlayer.name})`;
-    console.log(akEvent);
-    if (!targetedPlayer.HorcruxCount) {
-      console.log(targetedPlayer.Character.name + ' eliminated');
-      targetedPlayer.Character.revealed = true;
-      gameInfo.DiscardPile.push(...targetedPlayer.Hand);
-      targetedPlayer.Hand = [];
-      const dhCards = targetedPlayer.FaceUpCards.filter(c => c.type === CardTypes.DH);
-      if (dhCards.length) {
-        gameInfo.DeathlyHallowDeck.push(...dhCards);
-      }
-      const cbCards = targetedPlayer.FaceUpCards.filter(c => c.type === CardTypes.CB);
-      if (cbCards.length) {
-        gameInfo.DiscardPile.push(...cbCards);
-      }
-      targetedPlayer.FaceUpCards = [];
-    }
-    gameInfo.Events.push(akEvent);
-  }
-  else {
-    const cardIdx = player.Hand.find(c => c.type === card.type);
+  const cardIdx = player.Hand.find(c => c.type === card.type);
     gameInfo.DiscardPile.push(player.Hand.splice(cardIdx, 1)[0]);
     const targetedPlayer = gameInfo.Players.find(p => p.ID === targetedPlayerId);
     //const attackEvent = `${player.Character.name} casted ${card.type} on ${targetedPlayer.Character.name}`;
@@ -855,8 +805,7 @@ function playAttackingCard(card, playAsAK, player, targetedPlayerId, gameInfo, b
     gameInfo.baseAttackCardType = card.type;
     gameInfo.currAttackerPlayerTurnID = player.ID;
     gameInfo.currTargetedPlayerTurnID = targetedPlayerId;
-  }
-  updateBotDeductionsOnAttack(player.ID, targetedPlayerId, gameInfo, botState);
+    updateBotDeductionsOnAttack(player.ID, targetedPlayerId, gameInfo, botState);
 }
 
 function guessAndUpdateBotDeductions(gameInfo, botState) {
@@ -1081,52 +1030,110 @@ function castProtegoByTargetedPlayer(gameInfo, botState, rid) {
   const tmp = gameInfo.currAttackerPlayerTurnID;
   gameInfo.currAttackerPlayerTurnID = gameInfo.currTargetedPlayerTurnID;
   gameInfo.currTargetedPlayerTurnID = tmp;
-  //const defenseEvent = `${targetedPlayer.Character.name} casted ${CardTypes.PROTEGO}`;
   const defenseEvent = `${getPlayerName(targetedPlayer)} casted ${CardTypes.PROTEGO}`;
-  //const defenseEvent = `Player ${targetedPlayer.ID} (${targetedPlayer.name}) casted ${CardTypes.PROTEGO}`;
   console.log(defenseEvent);
   gameInfo.Events.push(defenseEvent);
   notifyDefense(gameInfo, botState, rid);
 }
 
-function notifyDefense(gameInfo, botState, rid) {
-  // TODO: notify human player through socket
+function castDodgeByTargetedPlayer(gameInfo, botState, rid) {
   const targetedPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currTargetedPlayerTurnID);
-    const accioIdx = targetedPlayer.Hand.findIndex(c => c.type === CardTypes.PROTEGO);
-  if (accioIdx > -1) {
-    if (targetedPlayer.isBot) {
-      targetedPlayer.Hand.splice(accioIdx, 1);
-      const tmp = gameInfo.currAttackerPlayerTurnID;
-      gameInfo.currAttackerPlayerTurnID = gameInfo.currTargetedPlayerTurnID;
-      gameInfo.currTargetedPlayerTurnID = tmp;
-      //const defenseEvent = `${targetedPlayer.Character.name} casted ${CardTypes.PROTEGO}`;
-      const defenseEvent = `${getPlayerName(targetedPlayer)} casted ${CardTypes.PROTEGO}`;
-      //const defenseEvent = `Player ${targetedPlayer.ID} (${targetedPlayer.name}) casted ${CardTypes.PROTEGO}`;
-      console.log(defenseEvent);
-      gameInfo.Events.push(defenseEvent);
-      notifyDefense(gameInfo, botState, rid);
-    } else {
-      notifyGameInfo(rid);
+  const dodgeIdx = targetedPlayer.Hand.findIndex(c => c.type === CardTypes.DODGE);
+  targetedPlayer.Hand.splice(dodgeIdx, 1);
+  const tmp = gameInfo.currAttackerPlayerTurnID;
+  gameInfo.currAttackerPlayerTurnID = gameInfo.currTargetedPlayerTurnID;
+  gameInfo.currTargetedPlayerTurnID = tmp;
+  const defenseEvent = `${getPlayerName(targetedPlayer)} casted ${CardTypes.DODGE}`;
+  console.log(defenseEvent);
+  gameInfo.Events.push(defenseEvent);
+  notifyGameInfo(rid);
+}
+
+function attackingCardEffects(targetedPlayer, attackerPlayer, gameInfo, botState, rid) {
+  if (gameInfo.baseAttackCardType === CardTypes.EXPELLIARMUS) {
+    console.log(`${getPlayerName(targetedPlayer)} was disarmed`);
+    targetedPlayer.isDisarmed = true;
+  }
+  else if (gameInfo.baseAttackCardType === CardTypes.AVADAKEDAVRA) {
+    targetedPlayer.HorcruxCount -= 1;
+    if (!targetedPlayer.HorcruxCount) {
+      console.log(targetedPlayer.Character.name + ' eliminated');
+      targetedPlayer.Character.revealed = true;
+      gameInfo.DiscardPile.push(...targetedPlayer.Hand);
+      targetedPlayer.Hand = [];
+      const dhCards = targetedPlayer.FaceUpCards.filter(c => c.type === CardTypes.DH);
+      if (dhCards.length) {
+        gameInfo.DeathlyHallowDeck.push(...dhCards);
+      }
+      const cbCards = targetedPlayer.FaceUpCards.filter(c => c.type === CardTypes.CB);
+      if (cbCards.length) {
+        gameInfo.DiscardPile.push(...cbCards);
+      }
+      targetedPlayer.FaceUpCards = [];
     }
   }
-    else {
-      if (gameInfo.baseAttackCardType === CardTypes.EXPELLIARMUS) {
-        //console.log(`${targetedPlayer.Character.name} was disarmed`);
-        console.log(`${getPlayerName(targetedPlayer)} was disarmed`);
-        targetedPlayer.isDisarmed = true;
-      }
-      else {
-        notifyAccioChoose(gameInfo, rid);
-      }
-      const attackerPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currAttackerPlayerTurnID);
-      if (attackerPlayer.isBot) {
-        if (!gameInfo.preDrawnCard) {
-          const currPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
-          drawCard(currPlayer, gameInfo);
+  else {
+    notifyAccioChoose(gameInfo, rid);
+  }
+  if (attackerPlayer.isBot) {
+    if (!gameInfo.preDrawnCard) {
+      const currPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
+      drawCard(currPlayer, gameInfo);
+    }
+    endTurn(gameInfo, botState, rid);
+  }
+  gameInfo.baseAttackCardType = null;
+  gameInfo.currAttackerPlayerTurnID = null;
+  gameInfo.currTargetedPlayerTurnID = null;
+}
+
+function skipDodge(gameInfo, botState, rid) {
+  const attackerPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currAttackerPlayerTurnID);
+  const targetedPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currTargetedPlayerTurnID);
+  attackingCardEffects(targetedPlayer, attackerPlayer, gameInfo, botState, rid);
+  const skipDodgeEvent = `${getPlayerName(targetedPlayer)} skipped casting ${CardTypes.DODGE}`;
+  console.log(skipDodgeEvent);
+  gameInfo.Events.push(skipDodgeEvent);
+  notifyGameInfo(rid);
+}
+
+function notifyDefense(gameInfo, botState, rid) {
+  const targetedPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currTargetedPlayerTurnID);
+    const accioIdx = targetedPlayer.Hand.findIndex(c => c.type === CardTypes.PROTEGO);
+    const dodgeIdx = targetedPlayer.Hand.findIndex(c => c.type === CardTypes.PROTEGO);
+    const attackerPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currAttackerPlayerTurnID);
+
+    if (([CardTypes.ACCIO, CardTypes.EXPELLIARMUS].includes(gameInfo.baseAttackCardType) &&
+        (accioIdx > -1 || dodgeIdx > -1)) ||
+        (gameInfo.baseAttackCardType === CardTypes.AVADAKEDAVRA && dodgeIdx > -1)
+        ) {
+      if (targetedPlayer.isBot) {
+        if ([CardTypes.ACCIO, CardTypes.EXPELLIARMUS].includes(gameInfo.baseAttackCardType)
+        && accioIdx > -1) {
+          targetedPlayer.Hand.splice(accioIdx, 1);
+        const tmp = gameInfo.currAttackerPlayerTurnID;
+        gameInfo.currAttackerPlayerTurnID = gameInfo.currTargetedPlayerTurnID;
+        gameInfo.currTargetedPlayerTurnID = tmp;
+        const defenseEvent = `${getPlayerName(targetedPlayer)} casted ${CardTypes.PROTEGO}`;
+        console.log(defenseEvent);
+        gameInfo.Events.push(defenseEvent);
+        notifyDefense(gameInfo, botState, rid);
+        return;
         }
-        endTurn(gameInfo, botState, rid);
+        if (gameInfo.baseAttackCardType === CardTypes.AVADAKEDAVRA) {
+          targetedPlayer.Hand.splice(dodgeIdx, 1);
+          const dodgeEvent = `${getPlayerName(targetedPlayer)} casted ${CardTypes.DODGE}`;
+          console.log(dodgeEvent);
+          gameInfo.Events.push(dodgeEvent);
+          notifyGameInfo(rid);
+          return;
+        }
+      } else {
+        notifyGameInfo(rid);
+        return;
       }
     }
+    attackingCardEffects(targetedPlayer, attackerPlayer, gameInfo, botState, rid);
 }
 
 function playBotTurn(player, botState, gameInfo, rid) {
@@ -1270,12 +1277,7 @@ function playBotTurn(player, botState, gameInfo, rid) {
       }
     }
     playAttackingCard(attackingCard, playAsAK, player, targetedPlayerId, gameInfo, botState);
-    if ([CardTypes.ACCIO, CardTypes.EXPELLIARMUS].includes(attackingCard.type) && !playAsAK) {
-      notifyDefense(gameInfo, botState, rid);
-    }
-    else {
-      endTurn(gameInfo, botState, rid);
-    }
+    notifyDefense(gameInfo, botState, rid);
   }
   else {
     if (!gameInfo.preDrawnCard) {
@@ -1440,6 +1442,18 @@ io.on('connection', function (socket) {
     const roomInfo = getRoomInfo(roomId);
     const gameInfo = getGameInfo(roomId);
     castProtegoByTargetedPlayer(gameInfo, roomInfo.botState, roomId);
+  });
+
+  socket.on("CastDodge", () => {
+    const roomInfo = getRoomInfo(roomId);
+    const gameInfo = getGameInfo(roomId);
+    castDodgeByTargetedPlayer(gameInfo, roomInfo.botState, roomId);
+  });
+
+  socket.on("SkipDodge", () => {
+    const roomInfo = getRoomInfo(roomId);
+    const gameInfo = getGameInfo(roomId);
+    skipDodge(gameInfo, roomInfo.botState, roomId);
   });
 
   socket.on("DrawCard", () => {

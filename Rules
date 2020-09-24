@@ -46,6 +46,7 @@ Accio charm - allows to steal a random pick card from any player within spell re
 Lily's Charm: Destroys 1 horcrux of both attacker and defender
 Expelliarmus: Skips 1 turn of the opponent unless countered by Protego Charm in which case the player who cast the Expelliarmus gets their turn skipped
 Protego: Can be used to counter the Expelliarmus, Accio and a Protego
+Dodge: Can be used to dodge any spell (Expelliarmus, Accio and Avada Kedavra)
 Crystall Ball: the number indicated on the ball indicates how far (number of players to their sides) can a player cast the spell
 Chocolate Frog Cards (CFC): 
 	Have a House name and a celebrity.
@@ -78,6 +79,4 @@ Playing a card:
 4. Can play as many non-spell cards at the start of a turn; Non-spell cards = Crystal Ball, CFC, Deathly Hallows
 
 *****Future Mods******
-Can also trade for sequence of 3 cards for HC or AK and 4 cards for D.H
 Each character can have a special trait
-Apparate move can help dodge any spell (including Aveda)

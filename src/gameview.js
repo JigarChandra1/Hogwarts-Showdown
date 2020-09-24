@@ -9,6 +9,7 @@ const CardTypes = {
     AVADAKEDAVRA: 'AVADAKEDAVRA',
     EXPELLIARMUS: 'EXPELLIARMUS',
     PROTEGO: 'PROTEGO',
+    DODGE: 'DODGE',
     CFC: 'CHOCOLATE-FROG-CARD',
     DH: 'DEATHLY-HALLOW',
     CB: 'CRYSTAL-BALL',
@@ -318,11 +319,7 @@ function getImageName(card) {
         case CardTypes.CFC:
             name = card.suite.toLowerCase() + '_' + card.number;
             break;
-        case CardTypes.PROTEGO:
-        case CardTypes.EXPELLIARMUS:
-        case CardTypes.ACCIO:
-        case CardTypes.AVADAKEDAVRA:
-        case CardTypes.CB:
+        default:
             name = card.type.toLowerCase();
             break;
     }
@@ -461,6 +458,7 @@ function getCardName(card) {
         case CardTypes.ACCIO:
         case CardTypes.AVADAKEDAVRA:
         case CardTypes.PROTEGO:
+        case CardTypes.DODGE:
             return card.type
         case CardTypes.CB:
             return card.type + ' ' + card.number
@@ -551,8 +549,11 @@ function getActions(props) {
     isReadyToCast = selectedCard && props.GameStatus.targetedPlayerId !== -1,
     canPlayAsAK = player.FaceUpCards.some(c => c.type === 'DEATHLY-HALLOW' && c.suite === 'ELDER-WAND'),
     canActivateCB = player.Hand.some(c => c.type === CardTypes.CB) && !player.FaceUpCards.some(c => c.type === CardTypes.CB),
-    canCastProtego = props.GameStatus.gameInfo.currTargetedPlayerTurnID === player.ID &&
-                    player.Hand.some(c => c.type === CardTypes.PROTEGO),
+    canCastProtego = props.GameStatus.gameInfo.currTargetedPlayerTurnID === player.ID 
+                    && [CardTypes.ACCIO, CardTypes.EXPELLIARMUS].includes(props.GameStatus.gameInfo.baseAttackCardType)
+                    && player.Hand.some(c => c.type === CardTypes.PROTEGO),
+    canCastDodge = props.GameStatus.gameInfo.currTargetedPlayerTurnID === player.ID 
+                    && player.Hand.some(c => c.type === CardTypes.DODGE),
     canPreDrawCard = isCurrentTurn && !props.GameStatus.gameInfo.preDrawnCard && player.Hand.length < 5,
     drawCardPostPass = props.GameStatus.passedTurn && !props.GameStatus.gameInfo.preDrawnCard,
     shouldDiscardExcessCards = isCurrentTurn && player.Hand.length > 5,
@@ -613,6 +614,22 @@ function getActions(props) {
                         props.io.emit("CastProtego");
                         props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1, passedTurn: false});
                     }}>{'CAST PROTEGO'}</button>
+                </div>
+            )}
+            {canCastDodge && (
+                <div className="col" id="castDodge">
+                    <button className="Action" onClick={(e) => {
+                        props.io.emit("CastDodge");
+                        props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1, passedTurn: false});
+                    }}>{'CAST DODGE'}</button>
+                </div>
+            )}
+            {canCastDodge && (
+                <div className="col" id="skipDodge">
+                    <button className="Action" onClick={(e) => {
+                        props.io.emit("SkipDodge");
+                        props.onGameStatusMultiChange({selectedCard: null, targetedPlayerId: -1, passedTurn: false});
+                    }}>{'SKIP DODGE'}</button>
                 </div>
             )}
             {(canPreDrawCard || drawCardPostPass) && (
