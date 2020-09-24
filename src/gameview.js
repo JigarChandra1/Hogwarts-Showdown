@@ -199,7 +199,6 @@ function PlayersArea(props){
                     <li className="Option col">
                         {p.playerName + (p.isRoomMaster ? ' (Admin)' : '')}
                     </li>
-                    <div className="gamingStatus col">{p.isReady4Gaming ? 'READY' : 'AWAITING'}</div>
                 </div>
             );
         });
