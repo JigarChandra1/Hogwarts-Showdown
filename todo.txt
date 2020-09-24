@@ -4,3 +4,4 @@ TODOs:
 2. unable to see get-hallow when all hallows are taken
 3. with 2 players, stuck when accio cast on human, human casts protego: Player has unknown FaceUp cards: []
     at accioFaceUpCard (C:\Users\jbc00\GitHub\Hogwarts-Showdown\app.js:1016:11)
+4. BUG: bots are casting multiple AK; player cannot cast >1 attacking card in a turn
