@@ -1125,10 +1125,24 @@ function notifyDefense(gameInfo, botState, rid) {
           const dodgeEvent = `${getPlayerName(targetedPlayer)} casted ${CardTypes.DODGE}`;
           console.log(dodgeEvent);
           gameInfo.Events.push(dodgeEvent);
+          if (attackerPlayer.isBot) {
+            if (!gameInfo.preDrawnCard) {
+              const currPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
+              drawCard(currPlayer, gameInfo);
+            }
+            endTurn(gameInfo, botState, rid);
+          }
           notifyGameInfo(rid);
           return;
         }
       } else {
+        if (attackerPlayer.isBot) {
+          if (!gameInfo.preDrawnCard) {
+            const currPlayer = gameInfo.Players.find(p => p.ID === gameInfo.currPlayerTurnID);
+            drawCard(currPlayer, gameInfo);
+          }
+          endTurn(gameInfo, botState, rid);
+        }
         notifyGameInfo(rid);
         return;
       }
