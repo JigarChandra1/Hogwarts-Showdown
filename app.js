@@ -1005,7 +1005,12 @@ function notifyAccioChoose(gameInfo, rid) {
     if (currAttacker.isBot) {
       const chooseFaceUp = Math.floor(Math.random() * 100) < 50;
       if (chooseFaceUp) {
-        accioFaceUpCard(currAttacker, targetedPlayer, gameInfo);
+        const dhCard = targetedPlayer.FaceUpCards.find(c => c.type === CardTypes.DH);
+        if (dhCard) {
+          accioFaceUpCard(currAttacker, targetedPlayer, gameInfo, dhCard);  
+        } else {
+          accioFaceUpCard(currAttacker, targetedPlayer, gameInfo);
+        }
       }
       else {
         accioRandomCard(currAttacker, targetedPlayer, gameInfo);
@@ -1119,6 +1124,19 @@ function notifyDefense(gameInfo, botState, rid) {
         gameInfo.Events.push(defenseEvent);
         notifyDefense(gameInfo, botState, rid);
         return;
+        }
+        else if (targetedPlayer.FaceUpCards.some(c => c.type === CardTypes.DH)
+        && [CardTypes.ACCIO, CardTypes.EXPELLIARMUS].includes(gameInfo.baseAttackCardType)
+        && dodgeIdx > -1) {
+          targetedPlayer.Hand.splice(dodgeIdx, 1);
+          const tmp = gameInfo.currAttackerPlayerTurnID;
+          gameInfo.currAttackerPlayerTurnID = gameInfo.currTargetedPlayerTurnID;
+          gameInfo.currTargetedPlayerTurnID = tmp;
+          const defenseEvent = `${getPlayerName(targetedPlayer)} casted ${CardTypes.DODGE}`;
+          console.log(defenseEvent);
+          gameInfo.Events.push(defenseEvent);
+          notifyDefense(gameInfo, botState, rid);
+          return;
         }
         if (gameInfo.baseAttackCardType === CardTypes.AVADAKEDAVRA) {
           targetedPlayer.Hand.splice(dodgeIdx, 1);
