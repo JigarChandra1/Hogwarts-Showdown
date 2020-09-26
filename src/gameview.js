@@ -545,7 +545,7 @@ function getActions(props) {
     isCurrentTurn = currPlayerTurnID === player.ID,
     currPlayerIsBot = props.GameStatus.gameInfo.Players.find(p => p.ID === currPlayerTurnID).isBot,
     selectedCard = props.GameStatus.selectedCard,
-    isReadyToCast = selectedCard && props.GameStatus.targetedPlayerId !== -1,
+    isReadyToCast = selectedCard && props.GameStatus.targetedPlayerId !== -1 && !props.GameStatus.gameInfo.castedAttackingCard,
     canPlayAsAK = player.FaceUpCards.some(c => c.type === 'DEATHLY-HALLOW' && c.suite === 'ELDER-WAND'),
     canActivateCB = player.Hand.some(c => c.type === CardTypes.CB) && !player.FaceUpCards.some(c => c.type === CardTypes.CB),
     canCastProtego = props.GameStatus.gameInfo.currTargetedPlayerTurnID === player.ID 

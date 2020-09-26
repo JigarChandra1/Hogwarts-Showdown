@@ -805,6 +805,7 @@ function playAttackingCard(card, playAsAK, player, targetedPlayerId, gameInfo, b
     gameInfo.baseAttackCardType = card.type;
     gameInfo.currAttackerPlayerTurnID = player.ID;
     gameInfo.currTargetedPlayerTurnID = targetedPlayerId;
+    gameInfo.castedAttackingCard = true;
     updateBotDeductionsOnAttack(player.ID, targetedPlayerId, gameInfo, botState);
 }
 
@@ -871,41 +872,53 @@ function guessAndUpdateBotDeductions(gameInfo, botState) {
 
 function endTurn(gameInfo, botState, rid) {
   gameInfo.preDrawnCard = false;
+  gameInfo.castedAttackingCard = false;
   const currPlayerIdx = gameInfo.Players.findIndex(p => p.ID === gameInfo.currPlayerTurnID);
   let i = (currPlayerIdx + 1) % gameInfo.Players.length;
+  let someOneWasDisarmed = false;
+  let iterations = 0;
   while (true) {
-    if (i === 0) {
-      gameInfo.Rounds += 1;
-  
-      // TODO - debugging
-      
-       if (gameInfo.Rounds >= 30) {
-        console.log('Inspect game');
-      }
-       
-  
-      guessAndUpdateBotDeductions(gameInfo, botState);
-      if (gameInfo.Rounds === 50) {
-        // TODO - remove
-        gameInfo.Aborted = true;
-        gameInfo.GameEnded = true;
-        return;
-      }
-      console.log('Starting Round ' + gameInfo.Rounds);
-      console.log('Eliminated players: ' + gameInfo.Players.filter(p => !p.HorcruxCount).map(p => p.Character.name).join(','));
+    if (iterations > gameInfo.Players.length) {
+      throw new Error('Invalid state');
+    }
+    iterations += 1;
+    if (!someOneWasDisarmed && i === currPlayerIdx && gameInfo.Players[i].Character.name !== PETER) {
+      throw new Error('Game is in an invalid state');
     }
     if (!gameInfo.Players[i].HorcruxCount) {
       i = (i + 1) % gameInfo.Players.length;
+      continue;
     }
-    else if (gameInfo.Players[i].isDisarmed) {
+    if (gameInfo.Players[i].isDisarmed) {
       console.log(`Skipping turn of ${getPlayerName(gameInfo.Players[i])} since they are disarmed`);
       gameInfo.Players[i].isDisarmed = false;
+      someOneWasDisarmed = true;
       i = (i + 1) % gameInfo.Players.length;
+      continue;
     }
-    else {
-      break;
-    }
+    break;
   }
+
+  if (i === 0) {
+    gameInfo.Rounds += 1;
+
+    // TODO - debugging
+    
+     if (gameInfo.Rounds >= 30) {
+      console.log('Inspect game');
+    }
+
+    if (gameInfo.Rounds === 50) {
+      // TODO - remove
+      gameInfo.Aborted = true;
+      gameInfo.GameEnded = true;
+      return;
+    }
+    console.log('Starting Round ' + gameInfo.Rounds);
+    console.log('Eliminated players: ' + gameInfo.Players.filter(p => !p.HorcruxCount).map(p => p.Character.name).join(','));
+  }
+  guessAndUpdateBotDeductions(gameInfo, botState);
+
   gameInfo.currPlayerTurnID = gameInfo.Players[i].ID;
   const goodForcePlayers = gameInfo.Players.filter(p => GOOD_FORCES.includes(p.Character.name));
   const evilForcePlayers = gameInfo.Players.filter(p => EVIL_FORCES.includes(p.Character.name));
@@ -1361,7 +1374,7 @@ function startGameSim() {
   initGame(roomInfo);
 }
 const gameStats = [];
-for (let i = 0; i < 100; i++) {
+for (let i = 0; i < 2; i++) {
   console.log('Starting Game: ' + (i + 1));
   startGameSim();
   while (!roomInfo.gameInfo.GameEnded) {
@@ -1388,6 +1401,7 @@ results.PlayersAttemptedHallowFromEmptyDeck = gameStats.map(g => g.PlayersAttemp
 console.log('Results: ' + JSON.stringify(results, null, 2));
 process.exit();
 */
+
 
 
 function isGameEnded(rid) {
